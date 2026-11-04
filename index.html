@@ -99,6 +99,45 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(190px
 .hint{font-size:12px;color:var(--muted);padding:10px 16px 14px}
 .linkbtn{margin-left:auto;border:0;background:none;color:var(--accent);font:600 12.5px var(--sans);cursor:pointer;padding:4px 0;text-decoration:underline}
 .pill.draft{background:#FFF4CC;color:#8A5A00}
+.pill.cancel{background:var(--line);color:var(--muted)}
+.tblwrap{overflow-x:auto;padding:0 0 4px}
+.stbl{border-collapse:collapse;width:100%;min-width:560px;font-variant-numeric:tabular-nums;font-size:13px}
+.stbl th{font:600 10.5px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:8px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:normal}
+.stbl th:first-child,.stbl td:first-child{text-align:left;padding-left:16px;position:sticky;left:0;background:var(--surface)}
+.stbl td{padding:9px 6px;text-align:center;border-bottom:1px solid var(--line);font-family:var(--mono)}
+.stbl td:first-child{font-family:var(--sans);font-weight:600;color:var(--ink);white-space:nowrap}
+.stbl td.rob{color:var(--accent);font-weight:700;background:var(--accent-soft)}
+.stbl td.neg{color:var(--err);font-weight:700}
+.stbl td.na{background:var(--field);color:var(--muted)}
+.stbl tr.tot td{font-weight:700;color:var(--ink);border-top:2px solid var(--ink)}
+.itm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+.itm:last-child{border-bottom:0}
+.itm b{font:600 16px var(--mono);color:var(--ink)} .itm small{color:var(--muted);font-size:12px;margin-left:4px}
+.itm .nm{font-weight:500;min-width:0}
+.itm.warn{background:var(--err-soft)} .itm.warn b{color:var(--err)}
+.itm .wtag{display:block;font-size:11px;font-weight:600;color:var(--err)}
+.cat{padding:12px 16px 4px;font:600 11px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.mv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:13px}
+.mv:last-child{border-bottom:0}
+.mv .q{font:600 14px var(--mono)} .mv .q.p{color:var(--ok)} .mv .q.n{color:var(--err)}
+.mv .meta{grid-column:1/-1;color:var(--muted);font-size:12px}
+select{width:100%;font:500 15px var(--sans);color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:9px;padding:10px 11px}
+#stockWarn{display:inline-block;min-width:8px}
+#mvDir{flex-wrap:nowrap}
+.stfilter{padding:10px 16px 6px}
+.stfilter button{font:600 13px var(--sans);padding:8px 12px}
+.itm .cd{display:block;font:500 11.5px var(--mono);color:var(--muted);margin-top:1px}
+.picker{border:1px solid var(--line);border-radius:10px;max-height:280px;overflow:auto;background:var(--surface)}
+.picker button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 12px;color:var(--fg);font:500 14px var(--sans);cursor:pointer}
+.picker button:last-child{border-bottom:0}
+.picker button small{display:block;font:500 11.5px var(--mono);color:var(--muted)}
+.picker button b{font:600 13px var(--mono);color:var(--ink);align-self:center}
+.picker .none{padding:12px;color:var(--muted);font-size:13px}
+.picked{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:14px}
+.picked small{display:block;font:500 11.5px var(--mono);color:var(--muted)}
+.picked button{border:0;background:none;color:var(--accent);font:600 13px var(--sans);cursor:pointer}
+#mvDir button{flex:1;min-width:0;padding:10px 6px;font:600 13px var(--sans)}
+#stockWarn.on::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--err);vertical-align:middle;margin-left:2px}
 .bar .in{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
 .bar .btn{padding:12px 10px;font-size:14.5px}
 .btn.navy{background:var(--ink);color:var(--surface)}
@@ -134,6 +173,7 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(190px
   <div class="tabs" role="tablist" id="tabsBox">
     <button id="tabNew" role="tab" aria-selected="true">Yeni Sertifika</button>
     <button id="tabRec" role="tab" aria-selected="false">Kayıtlar <span id="recCount"></span></button>
+    <button id="tabStock" role="tab" aria-selected="false" hidden>Stok <span id="stockWarn"></span></button>
   </div>
 
   <div id="viewNew">
@@ -196,8 +236,42 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(190px
     <section class="card"><h2>Kayıtlı Sertifikalar <small id="recSub"></small></h2>
       <div class="search"><input id="q" placeholder="Seri no, tip veya dolduran ara" inputmode="search" style="font-family:var(--sans)"></div>
       <div id="recList"><div class="empty">Kayıtlar yükleniyor…</div></div>
-      <div class="hint">Bir kaydı silmek için E-Tablo'daki satırını silin.</div>
+      <div class="hint">Bir kaydı iptal etmek için E-Tablo'da satırı seçip üst menüden <b>Sertifika Sistemi → Seçili sertifikayı iptal et</b> deyin (stok geri eklenir).</div>
     </section>
+  </div>
+
+  <div id="viewStock" hidden>
+    <div id="stockMsg"></div>
+    <section class="card"><h2>Stok Girişi / Çıkışı <small>Gelen mal, sayım farkı</small></h2>
+      <form class="body" id="moveForm" autocomplete="off">
+        <div class="f"><label for="mvSearch">Ürün (stok kodu ya da adıyla ara)</label>
+          <input id="mvSearch" placeholder="Örn. ANA-1011 ya da maytap" style="font-family:var(--sans)" autocomplete="off">
+          <div id="mvResults" class="picker" hidden></div>
+          <div id="mvPicked" class="picked" hidden></div></div>
+        <div class="grid2">
+          <div class="f"><label>İşlem</label><div class="chips" id="mvDir">
+            <button type="button" data-d="1" aria-pressed="true">Giriş +</button>
+            <button type="button" data-d="-1" aria-pressed="false">Çıkış −</button></div></div>
+          <div class="f"><label for="mvQty">Miktar</label><input id="mvQty" inputmode="decimal" placeholder="0"></div>
+        </div>
+        <div class="f"><label for="mvNote">Açıklama (isteğe bağlı)</label><input id="mvNote" maxlength="120" placeholder="Örn. yeni koli geldi, sayım farkı" style="font-family:var(--sans)"></div>
+        <button class="btn primary" id="btnMove" type="submit">Stoğa İşle</button>
+      </form>
+    </section>
+    <section class="card"><h2>Can Salı Stoku <small id="stockTime"></small></h2>
+      <div class="tblwrap"><table class="stbl" id="raftTbl"></table></div>
+      <div class="hint">Sertifika <b>Kaydet</b> ile tamamlanınca o tipin Bitmiş Mamül'ü 1 azalır, Kapanmış Can Salı 1 artar.</div>
+    </section>
+    <section class="card"><h2>Ürünler <small id="itemCount"></small></h2>
+      <div class="search"><input id="stQ" placeholder="Stok kodu ya da ürün adı ara" inputmode="search" style="font-family:var(--sans)"></div>
+      <div class="chips stfilter" id="stFilter">
+        <button type="button" data-f="warn" aria-pressed="true">Uyarılar</button>
+        <button type="button" data-f="rapor" aria-pressed="false">Takip edilen</button>
+        <button type="button" data-f="all" aria-pressed="false">Tümü</button></div>
+      <div id="itemList"><div class="empty">Stok yükleniyor…</div></div>
+    </section>
+    <section class="card"><h2>Son Hareketler</h2><div id="moveList"></div></section>
+    <button class="btn ghost" id="btnReport" type="button" style="width:100%;margin-bottom:16px">Günlük Stok Raporunu Şimdi Oluştur</button>
   </div>
 </div>
 
@@ -300,8 +374,10 @@ function allRecs(){ // sheet records + queued ones (queued wins)
 }
 function sortedRecs(){return allRecs().sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));}
 const isDraft=r=>r.status==="Taslak";
-function lastOfType(t){return sortedRecs().find(r=>r.model===t&&!isDraft(r)&&String(r.serial)!==editing);}
-function lastAny(){return sortedRecs().find(r=>!isDraft(r)&&String(r.serial)!==editing);}
+const isCancel=r=>r.status==="İptal";
+const isDone=r=>!r.status||r.status==="Tamamlandı";
+function lastOfType(t){return sortedRecs().find(r=>r.model===t&&isDone(r)&&String(r.serial)!==editing);}
+function lastAny(){return sortedRecs().find(r=>isDone(r)&&String(r.serial)!==editing);}
 
 // ---------- auto-fill ----------
 function autoValues(){
@@ -315,8 +391,11 @@ function autoValues(){
   ["painter","stow","c1co2","c1n2","c2co2","c2n2","lo_wp","up_wp","ar_wp"].forEach(k=>{ v[k]= cfg[k] || (lt? (lt[k]??"") : ""); });
   v.c1hyd=mfgTR; v.c2hyd=mfgTR;
   EQ.forEach(e=>{v["q_"+e.k]=String(e.perP?e.perP*cap:e.fix); v["e_"+e.k]=la?(la["e_"+e.k]||""):"";});
-  if(la){
-    const nums=["lo_sn","up_sn","ar_sn"].map(k=>parseInt(String(la[k]||"").slice(-4),10)).filter(n=>!isNaN(n));
+  // Tüp (chamber) seri no: taslaklar ve gönderilmeyi bekleyenler dahil BÜTÜN kayıtlardaki en yüksek sıra numarasından devam eder
+  {
+    const nums=[];
+    allRecs().forEach(r=>{ if(String(r.serial)===editing) return;
+      ["lo_sn","up_sn","ar_sn"].forEach(k=>{ const s=String(r[k]||"").trim(); if(/^\d{10}$/.test(s)) nums.push(parseInt(s.slice(-4),10)); }); });
     if(nums.length){const last=Math.max(...nums),pre=Y.slice(2)+M+D,c=i=>String((last+i)%10000).padStart(4,"0");
       v.lo_sn=pre+c(1);v.up_sn=pre+c(2);v.ar_sn=pre+c(3);}
   }
@@ -375,8 +454,8 @@ async function refresh(){
 // ---------- login ----------
 function showUser(){ $("who").textContent = auth? auth.name : ""; $("userBox").hidden = !auth; }
 function logout(reason){
-  auth=null; records=[]; queue=[]; types={};
-  ["cert_auth","cert_records","cert_queue","cert_types"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  auth=null; records=[]; queue=[]; types={}; stockData=null;
+  ["cert_auth","cert_records","cert_queue","cert_types","cert_stock"].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
   showUser(); showView("login"); $("pin").value="";
   msg("loginMsg", reason? "err":"", reason||"");
 }
@@ -480,11 +559,13 @@ async function saveForm(draft){
   const btn=$(draft?"btnDraft":"btnSave"), label=btn.textContent; setBusy(true); btn.textContent="Kaydediliyor…";
   const prev=allRecs().find(x=>String(x.serial)===r.serial);
   r.createdAt=prev?.createdAt||new Date().toISOString();
-  let status="none", driveWarn=null;
+  let status="none", driveWarn=null, stokWarn=null;
   if(API_OK){
     try{
       const j=await api({action:"save",record:r,edit:editing,docx: draft? null : await docxB64(r)});
       if(j.ok && j.word && j.word!=="ok") driveWarn=j.word;
+      if(j.ok && j.stok && j.stok.uyari && j.stok.uyari.length) stokWarn=j.stok.uyari.join(" · ");
+      if(j.ok) setTimeout(loadStock,50);
       if(j.ok){records=j.records||records;store.set("cert_records",records);setTypes(j.types);status="saved";conn("on","Bağlı");}
       else if(j.code==="exists"){records=j.records||records;store.set("cert_records",records);status="exists";}
       else {status="error"; msg("topMsg","err","Kaydedilemedi: "+j.error);}
@@ -504,19 +585,33 @@ async function saveForm(draft){
       ? `${r.serial} taslak olarak kaydedildi. Sonra Kayıtlar sekmesinden "Devam et" ile tamamlayabilirsin. Yeni sertifika için Temizle.`
       : `İnternet yok: ${r.serial} taslağı telefonda bekletiliyor, internet gelince E-Tablo'ya gönderilecek.`;
     else text = status==="saved"
-      ? (driveWarn ? `${r.serial} E-Tablo'ya kaydedildi ama Word Drive'a kopyalanamadı. Yöneticinize haber verin.`
-                   : `${r.serial} (${r.model}) kaydedildi, Word dosyası Drive'a gönderildi. Telefona almak için "Word İndir", yeni sertifika için "Temizle".`)
+      ? (driveWarn ? `${r.serial} E-Tablo'ya kaydedildi ama bir sorun oldu: ${driveWarn} Yöneticinize haber verin.`
+                   : `${r.serial} (${r.model}) kaydedildi, Word Drive'a gönderildi, malzemeler stoktan düşüldü. Telefona almak için "Word İndir", yeni sertifika için "Temizle".`)
       : `İnternet yok: ${r.serial} telefonda bekletiliyor. İnternet gelince E-Tablo'ya kaydedilip Word Drive'a gönderilecek.`;
-    msg("topMsg", status==="saved"&&!driveWarn ? "ok" : "info", text);
+    if(stokWarn && !draft && status==="saved") text += ` Stok uyarısı: ${stokWarn}`;
+    msg("topMsg", status==="saved"&&!driveWarn&&!stokWarn ? "ok" : "info", text);
     keepEditing(r);
   }
   setBusy(false); btn.textContent=label; window.scrollTo({top:0,behavior:"smooth"});
 }
 // after a save the form stays on screen as that record, so Word İndir works and a re-save updates it
+// Bir kaydı forma yükler. Taslakta sadece elle değiştirilmiş alanlar ELLE kalır, gerisi OTO olur;
+// böylece tip değişince kapasite, adetler, painter, CO2/N2, basınçlar kendiliğinden güncellenir.
+const KEEP_FIELDS=["serial","lo_sn","up_sn","ar_sn","c1sn","c2sn"];   // kayıtlı numaralar hiç kendiliğinden değişmez
+function applyRecord(r){
+  editing=String(r.serial); state.model=r.model||state.model; state.pack=r.pack||"A";
+  $("mfgDate").value=trToISO(r.mfg)||$("mfgDate").value||todayISO();
+  if(!isDraft(r)){ manual=new Set(FIELDS); FIELDS.forEach(k=>$(k).value=r[k]??""); recompute(); return; }
+  manual=new Set(KEEP_FIELDS.filter(k=>String(r[k]??"")!==""));
+  FIELDS.forEach(k=>$(k).value=r[k]??"");
+  const v=autoValues();
+  FIELDS.forEach(k=>{ const val=String(r[k]??""); if(val!=="" && val!==String(v[k]??"")) manual.add(k); });
+  FIELDS.forEach(k=>{ if(manual.has(k)) $(k).value=r[k]??""; });
+  recompute();
+}
 function keepEditing(r){
-  editing=String(r.serial);
-  manual=new Set(isDraft(r)? FIELDS.filter(k=>String(r[k]??"")!=="") : FIELDS);
-  recompute(); renderRecs();
+  applyRecord(r);
+  renderRecs();
   $("editNote").textContent = isDraft(r)? `${r.serial} · taslak` : `${r.serial} · kaydedildi`;
 }
 function setBusy(b){ ["btnSave","btnDraft","btnWord","btnClear"].forEach(id=>$(id).disabled=b); }
@@ -545,9 +640,10 @@ $("btnClear").onclick=()=>{msg("topMsg");resetForm(false);};
 // ---------- records ----------
 function showView(v){
   $("viewLogin").hidden=v!=="login"; $("tabsBox").hidden=v==="login";
-  $("viewNew").hidden=v!=="new"; $("viewRec").hidden=v!=="rec"; $("bar").hidden=v!=="new";
-  $("tabNew").setAttribute("aria-selected",v==="new"); $("tabRec").setAttribute("aria-selected",v==="rec");
+  $("viewNew").hidden=v!=="new"; $("viewRec").hidden=v!=="rec"; $("viewStock").hidden=v!=="stock"; $("bar").hidden=v!=="new";
+  $("tabNew").setAttribute("aria-selected",v==="new"); $("tabRec").setAttribute("aria-selected",v==="rec"); $("tabStock").setAttribute("aria-selected",v==="stock");
 }
+$("tabStock").onclick=()=>{showView("stock");renderStock();loadStock();};
 $("tabNew").onclick=()=>showView("new");
 $("tabRec").onclick=()=>{showView("rec");renderRecs();refresh();};
 $("q").addEventListener("input",renderRecs);
@@ -565,33 +661,173 @@ function renderRecs(){
     left.innerHTML=`<b></b><div class="meta"><span class="pill"></span><span class="d"></span></div>`;
     left.querySelector("b").textContent=r.serial;
     const pill=left.querySelector(".pill");
-    pill.textContent=r._pending?"Gönderilmeyi bekliyor":isDraft(r)?`Taslak · ANA-${r.model}`:`ANA-${r.model} · ${r.pack||"A"}`;
-    if(r._pending) pill.classList.add("wait"); else if(isDraft(r)) pill.classList.add("draft");
+    pill.textContent=r._pending?"Gönderilmeyi bekliyor":isDraft(r)?`Taslak · ANA-${r.model}`:isCancel(r)?`İptal · ANA-${r.model}`:`ANA-${r.model} · ${r.pack||"A"}`;
+    if(r._pending) pill.classList.add("wait"); else if(isDraft(r)) pill.classList.add("draft"); else if(isCancel(r)) pill.classList.add("cancel");
     left.querySelector(".d").textContent=`${r._pending?"ANA-"+r.model+" · ":""}Üretim ${r.mfg||"-"}${r.by?" · "+r.by:""}`;
     const acts=document.createElement("div"); acts.className="acts";
     const bW=document.createElement("button"); bW.textContent="Word"; bW.onclick=()=>downloadDoc(r).catch(e=>msg("recMsg","err","Word oluşturulamadı: "+(e.message||e)));
     const bS=document.createElement("button"); bS.textContent="Paylaş"; bS.onclick=()=>shareDoc(r,"recMsg");
     const bE=document.createElement("button"); bE.textContent="Düzenle"; bE.onclick=()=>loadForEdit(r);
-    if(isDraft(r)){ bE.textContent="Devam et"; acts.append(bE); }
+    if(isCancel(r)){ /* iptal edilmiş: işlem yok */ }
+    else if(isDraft(r)){ bE.textContent="Devam et"; acts.append(bE); }
     else { acts.append(bW); if(navigator.share) acts.append(bS); acts.append(bE); }
     row.append(left,acts); box.appendChild(row);
   });
 }
 function loadForEdit(r){
-  editing=String(r.serial); state.model=r.model; state.pack=r.pack||"A";
-  $("mfgDate").value=trToISO(r.mfg)||todayISO();
-  manual=new Set(isDraft(r)? FIELDS.filter(k=>String(r[k]??"")!=="") : FIELDS); FIELDS.forEach(k=>$(k).value=r[k]??"");
-  recompute(); $("editNote").textContent=`${r.serial} düzenleniyor`;
+  applyRecord(r); $("editNote").textContent=`${r.serial} düzenleniyor`;
   msg("topMsg","info", isDraft(r)
-    ? `${r.serial} taslağı açıldı. Eksikleri tamamlayıp "Kaydet"e bas ya da tekrar taslak kaydet.`
+    ? `${r.serial} taslağı açıldı. Tipi değiştirirsen OTO alanlar kendiliğinden güncellenir. Eksikleri tamamlayıp "Kaydet"e bas.`
     : `${r.serial} düzenleniyor. Kaydedince mevcut kayıt güncellenir. Yeni sertifikaya dönmek için "Temizle".`);
   showView("new"); window.scrollTo({top:0});
 }
 
+// ---------- stock ----------
+let stockData=store.get("cert_stock",null), mvDir=1, mvPick=null, stFilter="warn";
+const fmtN=n=>n===null||n===undefined||n===""?"":Number(n).toLocaleString("tr-TR",{maximumFractionDigits:2});
+const trLow=t=>String(t||"").toLocaleLowerCase("tr-TR");
+// Türkçe aramayı esnek yapar: maytap = maytabı, kabuk = kabuğu, çanta = canta
+const norm=t=>trLow(t).replace(/ı/g,"i").replace(/ş/g,"s").replace(/ö/g,"o").replace(/ü/g,"u")
+  .replace(/[çc]/g,"c").replace(/[ğgk]/g,"g").replace(/[pb]/g,"b").replace(/[td]/g,"d");
+const isWarn=i=>i.tekrar||i.miktar<0||(i.kritik!==null&&i.miktar<=i.kritik);
+const warnText=i=>i.tekrar?"Kod tekrarlı":i.miktar<0?"Eksi stok":(i.kritik!==null&&i.miktar<=i.kritik)?"Kritik seviye":"";
+function salKey(tip,col){ return "SAL|"+tip+"|"+col; }
+async function loadStock(){
+  if(!auth||!API_OK) return;
+  try{
+    const j=await api({action:"stock"});
+    if(j.ok){ stockData=j.stock; stockData.at=Date.now(); store.set("cert_stock",stockData); $("tabStock").hidden=false; renderStock(); }
+    else if(!$("tabStock").hidden) msg("stockMsg","err","Stok okunamadı: "+j.error);
+  }catch(e){ if(e.message!=="auth") msg("stockMsg","info","İnternet yok. Son görülen stok gösteriliyor."); }
+}
+// all pickable entries: products + raft cells
+function pickables(){
+  const d=stockData; if(!d) return [];
+  const out=d.items.map(i=>({key:i.kod, title:i.ad, sub:i.kod, qty:i.miktar, unit:i.birim, bad:i.tekrar, hay:norm(i.kod+" "+i.ad)}));
+  (d.cols||[]).slice(0,7).forEach((c,ci)=>d.rafts.forEach(r=>{ if(r.vals[ci]===null) return;
+    out.push({key:salKey(r.tip,c), title:`Can Salı · ${r.tip} · ${c}`, sub:"Can salı stoku", qty:r.vals[ci], unit:"", hay:norm(`can salı ${r.tip} ${c}`)}); }));
+  return out;
+}
+function renderPicker(){
+  const q=norm($("mvSearch").value.trim()), box=$("mvResults");
+  if(!q){ box.hidden=true; return; }
+  const words=q.split(/\s+/);
+  const list=pickables().filter(p=>words.every(w=>p.hay.includes(w))).slice(0,30);
+  box.innerHTML=""; box.hidden=false;
+  if(!list.length){ box.innerHTML='<div class="none">Eşleşen ürün yok.</div>'; return; }
+  list.forEach(p=>{
+    const b=document.createElement("button"); b.type="button";
+    b.innerHTML="<span><span class=t></span><small></small></span><b></b>";
+    b.querySelector(".t").textContent=p.title; b.querySelector("small").textContent=p.sub+(p.bad?" · ⚠ kod tekrarlı":"");
+    b.querySelector("b").textContent=fmtN(p.qty)+(p.unit?" "+p.unit:"");
+    b.onclick=()=>{ mvPick=p; $("mvSearch").value=""; box.hidden=true; showPicked(); $("mvQty").focus(); };
+    box.appendChild(b);
+  });
+}
+function showPicked(){
+  const el=$("mvPicked");
+  if(!mvPick){ el.hidden=true; $("mvSearch").hidden=false; return; }
+  const cur=pickables().find(p=>p.key===mvPick.key)||mvPick;
+  el.hidden=false; $("mvSearch").hidden=true;
+  el.innerHTML="<span><span class=t></span><small></small></span><button type=button>Değiştir</button>";
+  el.querySelector(".t").textContent=cur.title;
+  el.querySelector("small").textContent=`${cur.sub} · mevcut ${fmtN(cur.qty)}${cur.unit?" "+cur.unit:""}`;
+  el.querySelector("button").onclick=()=>{ mvPick=null; showPicked(); $("mvSearch").focus(); };
+}
+$("mvSearch").addEventListener("input",renderPicker);
+function renderStock(){
+  const d=stockData;
+  $("stockWarn").className = d && d.items.some(isWarn) ? "on":"";
+  if(!d){ $("itemList").innerHTML='<div class="empty">Stok yükleniyor…</div>'; return; }
+  $("stockTime").textContent = d.at? "Güncellendi "+new Date(d.at).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}) : "";
+  // raft table
+  const short=["Kabuk","2. El","Bitmiş","Kapanmış","1. Sip.","2. Sip.","Ön Sip.","ROB"];
+  const tb=$("raftTbl"); tb.innerHTML="";
+  const hr=document.createElement("tr"); ["Tip"].concat(short).forEach(h=>{const th=document.createElement("th");th.textContent=h;hr.appendChild(th);});
+  const thead=document.createElement("thead"); thead.appendChild(hr); tb.appendChild(thead);
+  const tbody=document.createElement("tbody"); const tot=[0,0,0,0,0,0,0,0];
+  d.rafts.forEach(r=>{
+    const tr=document.createElement("tr"); const td0=document.createElement("td"); td0.textContent=r.tip; tr.appendChild(td0);
+    r.vals.forEach((v,i)=>{ const td=document.createElement("td"); td.textContent=v===null?"":fmtN(v);
+      if(v===null) td.className="na"; else { tot[i]+=v; if(i===7) td.className="rob"; if(v<0) td.className+=" neg"; }
+      tr.appendChild(td); });
+    tbody.appendChild(tr);
+  });
+  const tt=document.createElement("tr"); tt.className="tot"; const t0=document.createElement("td"); t0.textContent="TOPLAM"; tt.appendChild(t0);
+  tot.forEach((v,i)=>{const td=document.createElement("td"); td.textContent=fmtN(v); if(i===7) td.className="rob"; tt.appendChild(td);});
+  tbody.appendChild(tt); tb.appendChild(tbody);
+  renderItems();
+  // movements
+  const ml=$("moveList"); ml.innerHTML="";
+  if(!d.hareketler.length) ml.innerHTML='<div class="empty">Henüz hareket yok.</div>';
+  d.hareketler.forEach(h=>{
+    const el=document.createElement("div"); el.className="mv";
+    const nm=document.createElement("div"); nm.textContent = h.kod.startsWith("SAL|")? h.kod.split("|").slice(1).join(" · ") : `${h.ad||""} (${h.kod})`;
+    const q=document.createElement("div"); q.className="q "+(h.degisim>0?"p":"n"); q.textContent=(h.degisim>0?"+":"")+fmtN(h.degisim);
+    const m=document.createElement("div"); m.className="meta"; m.textContent=[h.tarih,h.sebep,h.seri,h.kim].filter(Boolean).join(" · ");
+    el.append(nm,q,m); ml.appendChild(el);
+  });
+  if(mvPick) showPicked();
+}
+function renderItems(){
+  const d=stockData; if(!d) return;
+  const q=norm($("stQ").value.trim()), words=q?q.split(/\s+/):[];
+  let list=d.items;
+  if(words.length) list=list.filter(i=>{ const h=norm(i.kod+" "+i.ad+" "+i.kategori); return words.every(w=>h.includes(w)); });
+  else if(stFilter==="warn") list=list.filter(isWarn);
+  else if(stFilter==="rapor") list=list.filter(i=>i.rapor);
+  $("itemCount").textContent=`${list.length} / ${d.items.length} ürün`;
+  const box=$("itemList"); box.innerHTML="";
+  if(!list.length){ box.innerHTML=`<div class="empty">${words.length?"Aramayla eşleşen ürün yok.":stFilter==="warn"?"Uyarı veren ürün yok. 👍":"Ürün yok."}</div>`; return; }
+  const LIMIT=200, shown=list.slice(0,LIMIT);
+  const cats=[]; shown.forEach(i=>{ if(!cats.includes(i.kategori)) cats.push(i.kategori); });
+  cats.forEach(c=>{
+    const h=document.createElement("div"); h.className="cat"; h.textContent=c; box.appendChild(h);
+    shown.filter(i=>i.kategori===c).forEach(i=>{
+      const w=warnText(i);
+      const row=document.createElement("div"); row.className="itm"+(w?" warn":"");
+      const nm=document.createElement("div"); nm.className="nm"; nm.textContent=i.ad;
+      const cd=document.createElement("span"); cd.className="cd"; cd.textContent=i.kod; nm.appendChild(cd);
+      if(w){ const t=document.createElement("span"); t.className="wtag"; t.textContent="⚠ "+w; nm.appendChild(t); }
+      const qd=document.createElement("div"); qd.innerHTML="<b></b><small></small>"; qd.querySelector("b").textContent=fmtN(i.miktar); qd.querySelector("small").textContent=i.birim;
+      row.append(nm,qd); box.appendChild(row);
+    });
+  });
+  if(list.length>LIMIT){ const more=document.createElement("div"); more.className="empty"; more.textContent=`İlk ${LIMIT} ürün gösteriliyor. Daraltmak için arama yapın.`; box.appendChild(more); }
+}
+$("stQ").addEventListener("input",renderItems);
+$("stFilter").querySelectorAll("button").forEach(b=>b.onclick=()=>{ stFilter=b.dataset.f; $("stFilter").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); renderItems(); });
+$("mvDir").querySelectorAll("button").forEach(b=>b.onclick=()=>{ mvDir=Number(b.dataset.d); $("mvDir").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b)); });
+$("moveForm").addEventListener("submit",async ev=>{
+  ev.preventDefault();
+  const qty=num($("mvQty").value);
+  if(!mvPick){ msg("stockMsg","err","Önce ürünü arayıp seçin."); window.scrollTo({top:0,behavior:"smooth"}); return; }
+  if(mvPick.bad){ msg("stockMsg","err",`${mvPick.key} kodu birden fazla üründe kayıtlı. E-Tablo'da Stok sayfasında kodu düzeltin.`); return; }
+  if(qty===null||qty<=0){ msg("stockMsg","err","Miktar 0'dan büyük bir sayı olmalı."); return; }
+  const btn=$("btnMove"); btn.disabled=true; btn.textContent="İşleniyor…";
+  try{
+    const j=await api({action:"stockMove",kalem:mvPick.key,degisim:mvDir*qty,not:$("mvNote").value.trim()});
+    if(j.ok){ stockData=j.stock; stockData.at=Date.now(); store.set("cert_stock",stockData);
+      msg("stockMsg","ok",`${mvPick.title} (${mvPick.sub}): ${mvDir>0?"+":"−"}${fmtN(qty)} işlendi. Yeni miktar: ${fmtN(j.yeni)}`);
+      $("mvQty").value=""; $("mvNote").value=""; mvPick=null; showPicked(); renderStock(); }
+    else msg("stockMsg","err","İşlenemedi: "+j.error);
+  }catch(e){ if(e.message!=="auth") msg("stockMsg","err","Sunucuya ulaşılamadı. Stok işlemleri için internet gerekli."); }
+  btn.disabled=false; btn.textContent="Stoğa İşle"; window.scrollTo({top:0,behavior:"smooth"});
+});
+$("btnReport").onclick=async()=>{
+  const b=$("btnReport"); b.disabled=true; b.textContent="Rapor hazırlanıyor… (20-40 sn)";
+  try{
+    const j=await api({action:"report"});
+    if(j.ok) msg("stockMsg","ok",`Rapor hazır: ${j.file}. Bilgisayarınızda Google Drive → ${j.folder} klasörüne gelecek.`);
+    else msg("stockMsg","err","Rapor oluşturulamadı: "+j.error);
+  }catch(e){ if(e.message!=="auth") msg("stockMsg","err","Sunucuya ulaşılamadı."); }
+  b.disabled=false; b.textContent="Günlük Stok Raporunu Şimdi Oluştur"; window.scrollTo({top:0,behavior:"smooth"});
+};
+
 // ---------- boot ----------
 $("mfgDate").value=todayISO(); recompute(); renderRecs(); showUser();
 if(!API_OK) msg("loginMsg","err","E-Tablo bağlantı adresi henüz girilmemiş.");
-if(auth){ showView("new"); flushQueue().then(refresh); }
+if(auth){ showView("new"); if(stockData) $("tabStock").hidden=false; renderStock(); flushQueue().then(refresh).then(loadStock); }
 else { showView("login"); conn("", ""); }
 </script>
 </body>
