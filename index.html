@@ -91,12 +91,18 @@ input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);ou
 
 html{-webkit-text-size-adjust:100%}
 [hidden]{display:none!important}
-body{margin:0;padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))!important}
 .conn{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);margin-left:auto;white-space:nowrap}
 .conn i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
 .conn.on i{background:var(--ok)} .conn.off i{background:var(--err)} .conn.wait i{background:var(--accent)}
 .pill.wait{background:var(--auto-soft);color:var(--auto)}
 .hint{font-size:12px;color:var(--muted);padding:10px 16px 14px}
+.linkbtn{margin-left:auto;border:0;background:none;color:var(--accent);font:600 12.5px var(--sans);cursor:pointer;padding:4px 0;text-decoration:underline}
+.pill.draft{background:#FFF4CC;color:#8A5A00}
+.bar .in{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
+.bar .btn{padding:12px 10px;font-size:14.5px}
+.btn.navy{background:var(--ink);color:var(--surface)}
+@media (min-width:640px){.bar .in{grid-template-columns:auto auto 1fr 1fr}}
 .userbox{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:4px}
 .userbox b{color:var(--ink)}
 .userbox button{border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 12.5px var(--sans);padding:6px 10px;border-radius:8px;cursor:pointer}
@@ -197,7 +203,9 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px)}
 
 <div class="bar" id="bar"><div class="in">
   <button class="btn ghost" id="btnClear">Temizle</button>
-  <button class="btn primary" id="btnSave">Kaydet ve Word İndir</button>
+  <button class="btn ghost" id="btnDraft">Taslak Kaydet</button>
+  <button class="btn primary" id="btnSave">Kaydet</button>
+  <button class="btn navy" id="btnWord">Word İndir</button>
 </div></div>
 
 <script>
@@ -291,8 +299,9 @@ function allRecs(){ // sheet records + queued ones (queued wins)
   return [...m.values()];
 }
 function sortedRecs(){return allRecs().sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));}
-function lastOfType(t){return sortedRecs().find(r=>r.model===t&&String(r.serial)!==editing);}
-function lastAny(){return sortedRecs().find(r=>String(r.serial)!==editing);}
+const isDraft=r=>r.status==="Taslak";
+function lastOfType(t){return sortedRecs().find(r=>r.model===t&&!isDraft(r)&&String(r.serial)!==editing);}
+function lastAny(){return sortedRecs().find(r=>!isDraft(r)&&String(r.serial)!==editing);}
 
 // ---------- auto-fill ----------
 function autoValues(){
@@ -398,7 +407,7 @@ async function flushQueue(){
     while(queue.length){
       const item=queue[0];
       let j;
-      try{ j=await api({action:"save",record:item.record,edit:item.edit,docx:await docxB64(item.record)}); }
+      try{ j=await api({action:"save",record:item.record,edit:item.edit,docx: isDraft(item.record)? null : await docxB64(item.record)}); }
       catch(e){ break; }   // still offline (or access closed)
       queue.shift(); store.set("cert_queue",queue);
       if(j.ok){ records=j.records||records; store.set("cert_records",records); setTypes(j.types); }
@@ -462,18 +471,19 @@ async function shareDoc(r,where){
 }
 
 // ---------- save ----------
-$("btnSave").onclick=async()=>{
-  const r=collect(),errs=validate(r);
+async function saveForm(draft){
+  const r=collect(); r.status = draft? "Taslak" : "Tamamlandı";
+  const errs = draft? (/^\d{6,}$/.test(r.serial)? [] : ["Seri No"]) : validate(r);
   if(errs.length){msg("topMsg","err","Eksik veya hatalı: "+errs.join(", "));window.scrollTo({top:0,behavior:"smooth"});return;}
   if(allRecs().some(x=>String(x.serial)===r.serial)&&editing!==r.serial){
     msg("topMsg","err",`${r.serial} seri numarası zaten kayıtlı. Düzeltmek için Kayıtlar sekmesinden "Düzenle"yi kullanın.`);window.scrollTo({top:0,behavior:"smooth"});return;}
-  const btn=$("btnSave"); btn.disabled=true; btn.textContent="Kaydediliyor…";
+  const btn=$(draft?"btnDraft":"btnSave"), label=btn.textContent; setBusy(true); btn.textContent="Kaydediliyor…";
   const prev=allRecs().find(x=>String(x.serial)===r.serial);
   r.createdAt=prev?.createdAt||new Date().toISOString();
   let status="none", driveWarn=null;
   if(API_OK){
     try{
-      const j=await api({action:"save",record:r,edit:editing,docx:await docxB64(r)});
+      const j=await api({action:"save",record:r,edit:editing,docx: draft? null : await docxB64(r)});
       if(j.ok && j.word && j.word!=="ok") driveWarn=j.word;
       if(j.ok){records=j.records||records;store.set("cert_records",records);setTypes(j.types);status="saved";conn("on","Bağlı");}
       else if(j.code==="exists"){records=j.records||records;store.set("cert_records",records);status="exists";}
@@ -489,14 +499,41 @@ $("btnSave").onclick=async()=>{
     conn("wait",`${queue.length} bekliyor`);
   }
   if(status==="saved"||status==="queued"){
-    try{ await downloadDoc(r); }catch(e){ msg("topMsg","err","Word dosyası oluşturulamadı: "+(e.message||e)); }
-    msg("topMsg", status==="saved"?"ok":"info",
-      status==="saved"? `${r.serial} (${r.model}) E-Tablo'ya kaydedildi ve Word dosyası indirildi. Form bir sonraki sertifika için hazır.`
-                      : `İnternet yok: ${r.serial} telefonda bekletiliyor, internet gelince E-Tablo'ya kendisi gönderilecek. Word dosyası indirildi.`);
-    if(driveWarn) msg("topMsg","info",`${r.serial} E-Tablo'ya kaydedildi ve Word indirildi, ancak Drive klasörüne kopyalanamadı. Yöneticinize haber verin.`);
-    resetForm(true);
+    let text;
+    if(draft) text = status==="saved"
+      ? `${r.serial} taslak olarak kaydedildi. Sonra Kayıtlar sekmesinden "Devam et" ile tamamlayabilirsin. Yeni sertifika için Temizle.`
+      : `İnternet yok: ${r.serial} taslağı telefonda bekletiliyor, internet gelince E-Tablo'ya gönderilecek.`;
+    else text = status==="saved"
+      ? (driveWarn ? `${r.serial} E-Tablo'ya kaydedildi ama Word Drive'a kopyalanamadı. Yöneticinize haber verin.`
+                   : `${r.serial} (${r.model}) kaydedildi, Word dosyası Drive'a gönderildi. Telefona almak için "Word İndir", yeni sertifika için "Temizle".`)
+      : `İnternet yok: ${r.serial} telefonda bekletiliyor. İnternet gelince E-Tablo'ya kaydedilip Word Drive'a gönderilecek.`;
+    msg("topMsg", status==="saved"&&!driveWarn ? "ok" : "info", text);
+    keepEditing(r);
   }
-  btn.disabled=false; btn.textContent="Kaydet ve Word İndir"; window.scrollTo({top:0,behavior:"smooth"});
+  setBusy(false); btn.textContent=label; window.scrollTo({top:0,behavior:"smooth"});
+}
+// after a save the form stays on screen as that record, so Word İndir works and a re-save updates it
+function keepEditing(r){
+  editing=String(r.serial);
+  manual=new Set(isDraft(r)? FIELDS.filter(k=>String(r[k]??"")!=="") : FIELDS);
+  recompute(); renderRecs();
+  $("editNote").textContent = isDraft(r)? `${r.serial} · taslak` : `${r.serial} · kaydedildi`;
+}
+function setBusy(b){ ["btnSave","btnDraft","btnWord","btnClear"].forEach(id=>$(id).disabled=b); }
+$("btnSave").onclick=()=>saveForm(false);
+$("btnDraft").onclick=()=>saveForm(true);
+$("btnWord").onclick=async()=>{
+  const r=collect(); r.status="Tamamlandı";
+  const errs=validate(r);
+  if(errs.length){msg("topMsg","err","Word için eksik veya hatalı alanlar: "+errs.join(", "));window.scrollTo({top:0,behavior:"smooth"});return;}
+  setBusy(true);
+  try{
+    await downloadDoc(r);
+    const saved = allRecs().some(x=>String(x.serial)===r.serial && !isDraft(x)) && editing===r.serial;
+    msg("topMsg", saved?"ok":"info", saved? `${r.serial} Word dosyası telefona indirildi.`
+      : `Word dosyası telefona indirildi. Bu sertifika henüz kaydedilmedi, kaydetmek için "Kaydet"e bas.`);
+  }catch(e){ msg("topMsg","err","Word dosyası oluşturulamadı: "+(e.message||e)); }
+  setBusy(false); window.scrollTo({top:0,behavior:"smooth"});
 };
 function resetForm(keepType){
   manual.clear(); editing=null; $("editNote").textContent="";
@@ -528,22 +565,26 @@ function renderRecs(){
     left.innerHTML=`<b></b><div class="meta"><span class="pill"></span><span class="d"></span></div>`;
     left.querySelector("b").textContent=r.serial;
     const pill=left.querySelector(".pill");
-    pill.textContent=r._pending?"Gönderilmeyi bekliyor":`ANA-${r.model} · ${r.pack||"A"}`; if(r._pending) pill.classList.add("wait");
+    pill.textContent=r._pending?"Gönderilmeyi bekliyor":isDraft(r)?`Taslak · ANA-${r.model}`:`ANA-${r.model} · ${r.pack||"A"}`;
+    if(r._pending) pill.classList.add("wait"); else if(isDraft(r)) pill.classList.add("draft");
     left.querySelector(".d").textContent=`${r._pending?"ANA-"+r.model+" · ":""}Üretim ${r.mfg||"-"}${r.by?" · "+r.by:""}`;
     const acts=document.createElement("div"); acts.className="acts";
     const bW=document.createElement("button"); bW.textContent="Word"; bW.onclick=()=>downloadDoc(r).catch(e=>msg("recMsg","err","Word oluşturulamadı: "+(e.message||e)));
     const bS=document.createElement("button"); bS.textContent="Paylaş"; bS.onclick=()=>shareDoc(r,"recMsg");
     const bE=document.createElement("button"); bE.textContent="Düzenle"; bE.onclick=()=>loadForEdit(r);
-    acts.append(bW); if(navigator.share) acts.append(bS); acts.append(bE);
+    if(isDraft(r)){ bE.textContent="Devam et"; acts.append(bE); }
+    else { acts.append(bW); if(navigator.share) acts.append(bS); acts.append(bE); }
     row.append(left,acts); box.appendChild(row);
   });
 }
 function loadForEdit(r){
   editing=String(r.serial); state.model=r.model; state.pack=r.pack||"A";
   $("mfgDate").value=trToISO(r.mfg)||todayISO();
-  manual=new Set(FIELDS); FIELDS.forEach(k=>$(k).value=r[k]??"");
+  manual=new Set(isDraft(r)? FIELDS.filter(k=>String(r[k]??"")!=="") : FIELDS); FIELDS.forEach(k=>$(k).value=r[k]??"");
   recompute(); $("editNote").textContent=`${r.serial} düzenleniyor`;
-  msg("topMsg","info",`${r.serial} düzenleniyor. Kaydedince mevcut kayıt güncellenir. Yeni sertifikaya dönmek için "Temizle".`);
+  msg("topMsg","info", isDraft(r)
+    ? `${r.serial} taslağı açıldı. Eksikleri tamamlayıp "Kaydet"e bas ya da tekrar taslak kaydet.`
+    : `${r.serial} düzenleniyor. Kaydedince mevcut kayıt güncellenir. Yeni sertifikaya dönmek için "Temizle".`);
   showView("new"); window.scrollTo({top:0});
 }
 
