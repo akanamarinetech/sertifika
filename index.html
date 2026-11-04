@@ -390,7 +390,12 @@ function autoValues(){
   const cfg=types[t]||{};
   ["painter","stow","c1co2","c1n2","c2co2","c2n2","lo_wp","up_wp","ar_wp"].forEach(k=>{ v[k]= cfg[k] || (lt? (lt[k]??"") : ""); });
   v.c1hyd=mfgTR; v.c2hyd=mfgTR;
-  EQ.forEach(e=>{v["q_"+e.k]=String(e.perP?e.perP*cap:e.fix); v["e_"+e.k]=la?(la["e_"+e.k]||""):"";});
+  // SKT: taslaklar dahil EN SON kaydedilen/güncellenen sertifikadaki geçerli tarih (iptaller hariç)
+  const bySaved=allRecs().filter(r=>!isCancel(r)&&String(r.serial)!==editing)
+    .sort((a,b)=>String(b.updatedAt||b.createdAt||"").localeCompare(String(a.updatedAt||a.createdAt||"")));
+  EQ.forEach(e=>{v["q_"+e.k]=String(e.perP?e.perP*cap:e.fix);
+    const src=bySaved.find(r=>/^(0[1-9]|1[0-2])\/\d{4}$/.test(String(r["e_"+e.k]||"")));
+    v["e_"+e.k]=src? src["e_"+e.k] : (la?(la["e_"+e.k]||""):""); });
   // Tüp (chamber) seri no: taslaklar ve gönderilmeyi bekleyenler dahil BÜTÜN kayıtlardaki en yüksek sıra numarasından devam eder
   {
     const nums=[];
@@ -558,7 +563,7 @@ async function saveForm(draft){
     msg("topMsg","err",`${r.serial} seri numarası zaten kayıtlı. Düzeltmek için Kayıtlar sekmesinden "Düzenle"yi kullanın.`);window.scrollTo({top:0,behavior:"smooth"});return;}
   const btn=$(draft?"btnDraft":"btnSave"), label=btn.textContent; setBusy(true); btn.textContent="Kaydediliyor…";
   const prev=allRecs().find(x=>String(x.serial)===r.serial);
-  r.createdAt=prev?.createdAt||new Date().toISOString();
+  r.createdAt=prev?.createdAt||new Date().toISOString(); r.updatedAt=new Date().toISOString();
   let status="none", driveWarn=null, stokWarn=null;
   if(API_OK){
     try{
