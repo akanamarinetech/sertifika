@@ -98,6 +98,8 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(190px
 .pill.wait{background:var(--auto-soft);color:var(--auto)}
 .hint{font-size:12px;color:var(--muted);padding:10px 16px 14px}
 .linkbtn{margin-left:auto;border:0;background:none;color:var(--accent);font:600 12.5px var(--sans);cursor:pointer;padding:4px 0;text-decoration:underline}
+.f.locked input{background:var(--line);color:var(--muted);border-style:dashed;text-align:center}
+.f.locked .tag{display:none}
 .pill.draft{background:#FFF4CC;color:#8A5A00}
 .pill.cancel{background:var(--line);color:var(--muted)}
 .tblwrap{overflow-x:auto;padding:0 0 4px}
@@ -204,14 +206,14 @@ select{width:100%;font:500 15px var(--sans);color:var(--fg);background:var(--fie
     <section class="card"><h2>2 · Tüpler</h2><div class="body">
       <div class="sub">Tüp 1</div>
       <div class="grid2">
-        <div class="f" data-k="c1sn"><label>Seri No</label><input id="c1sn" inputmode="numeric"></div>
+        <div class="f" data-k="c1sn"><label>Seri No</label><input id="c1sn" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false"></div>
         <div class="f" data-k="c1hyd"><label>Son Hidro Test</label><input id="c1hyd" placeholder="GG.AA.YYYY" inputmode="decimal"></div>
         <div class="f" data-k="c1co2"><label>CO₂ (g)</label><input id="c1co2" inputmode="numeric"></div>
         <div class="f" data-k="c1n2"><label>N₂ (g)</label><input id="c1n2" inputmode="numeric"></div>
       </div>
       <div class="sub">Tüp 2</div>
       <div class="grid2">
-        <div class="f" data-k="c2sn"><label>Seri No</label><input id="c2sn" inputmode="numeric"></div>
+        <div class="f" data-k="c2sn"><label>Seri No</label><input id="c2sn" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false"></div>
         <div class="f" data-k="c2hyd"><label>Son Hidro Test</label><input id="c2hyd" placeholder="GG.AA.YYYY" inputmode="decimal"></div>
         <div class="f" data-k="c2co2"><label>CO₂ (g)</label><input id="c2co2" inputmode="numeric"></div>
         <div class="f" data-k="c2n2"><label>N₂ (g)</label><input id="c2n2" inputmode="numeric"></div>
@@ -1568,11 +1570,12 @@ const INSPECTOR = "01";   // Log Card'daki Inspector numarası
 
 const TYPES = ["T6","T10","T15","T16","T20","T25","D15","D16","D20","D25"];
 const EQ = [
-  {k:"food",  n:"Food Rations",            tr:"Gıda",                  perP:1},
-  {k:"water", n:"Drinking Water",          tr:"İçme suyu",             perP:3},
-  {k:"rocket",n:"Parachute Rocket Signal", tr:"Paraşüt roket",         fix:4},
-  {k:"smoke", n:"Buoyant Smoke Signal",    tr:"Duman",                 fix:2},
-  {k:"flare", n:"Red Hand Flare",          tr:"El maytabı",            fix:6},
+  // b: B Pack adedi (SOLAS B Pack: gıda ve su yok, fişekler yarı yarıya)
+  {k:"food",  n:"Food Rations",            tr:"Gıda",                  perP:1, b:0},
+  {k:"water", n:"Drinking Water",          tr:"İçme suyu",             perP:3, b:0},
+  {k:"rocket",n:"Parachute Rocket Signal", tr:"Paraşüt roket",         fix:4,  b:2},
+  {k:"smoke", n:"Buoyant Smoke Signal",    tr:"Duman",                 fix:2,  b:1},
+  {k:"flare", n:"Red Hand Flare",          tr:"El maytabı",            fix:6,  b:3},
   {k:"tpa",   n:"Thermal Protective Aid (TPA)", tr:"Isı koruyucu (TPA)", fn:c=>Math.max(2,Math.ceil(c/10))},   // LSA: kişi sayısının %10'u ya da 2, hangisi büyükse
   {k:"aid",   n:"First Aid Kit",           tr:"İlk yardım",            fix:1},
   {k:"tab",   n:"Anti-Seasickness Tablet", tr:"Deniz tutması hapı",    perP:6},
@@ -1619,7 +1622,7 @@ function setTypes(t){ if(t&&typeof t==="object"){ types=t; store.set("cert_types
 
 const typeBox=$("types"), packBox=$("packs");
 TYPES.forEach(t=>{const b=document.createElement("button");b.type="button";b.textContent=t;b.onclick=()=>{state.model=t;recompute();};typeBox.appendChild(b);});
-["A","B"].forEach(t=>{const b=document.createElement("button");b.type="button";b.textContent=t;b.onclick=()=>{state.pack=t;renderChips();};packBox.appendChild(b);});
+["A","B"].forEach(t=>{const b=document.createElement("button");b.type="button";b.textContent=t;b.onclick=()=>{state.pack=t;recompute();};packBox.appendChild(b);});
 function renderChips(){
   [...typeBox.children].forEach(b=>b.setAttribute("aria-pressed",b.textContent===state.model));
   [...packBox.children].forEach(b=>b.setAttribute("aria-pressed",b.textContent===state.pack));
@@ -1657,7 +1660,10 @@ function autoValues(){
   // SKT: taslaklar dahil EN SON kaydedilen/güncellenen sertifikadaki geçerli tarih (iptaller hariç)
   const bySaved=allRecs().filter(r=>!isCancel(r)&&String(r.serial)!==editing)
     .sort((a,b)=>String(b.updatedAt||b.createdAt||"").localeCompare(String(a.updatedAt||a.createdAt||"")));
-  EQ.forEach(e=>{v["q_"+e.k]=String(e.fn?e.fn(cap):e.perP?e.perP*cap:e.fix);
+  EQ.forEach(e=>{
+    const q = state.pack==="B" && e.b!==undefined ? e.b : (e.fn?e.fn(cap):e.perP?e.perP*cap:e.fix);
+    v["q_"+e.k]=String(q);
+    if(q===0){ v["q_"+e.k]="-"; v["e_"+e.k]="-"; return; } // pakette yok: "-" yazılır, kilitlenir
     const src=bySaved.find(r=>/^(0[1-9]|1[0-2])\/\d{4}$/.test(String(r["e_"+e.k]||"")));
     v["e_"+e.k]=src? src["e_"+e.k] : (la?(la["e_"+e.k]||""):""); });
   // Tüp (chamber) seri no: taslaklar ve gönderilmeyi bekleyenler dahil BÜTÜN kayıtlardaki en yüksek sıra numarasından devam eder
@@ -1673,7 +1679,9 @@ function autoValues(){
     if(wp!==null){v[p+"_open"]=String(wp+20);v[p+"_close"]=String(wp);}});
   return v;
 }
+const notInPack=e=>state.pack==="B" && e.b===0;
 function recompute(){
+  EQ.forEach(e=>{ if(notInPack(e)){ manual.delete("q_"+e.k); manual.delete("e_"+e.k); } });
   const v=autoValues();
   FIELDS.forEach(k=>{
     const el=$(k),box=el.closest(".f");
@@ -1688,6 +1696,7 @@ function recompute(){
       if(lab) lab.appendChild(tag); else {tag.style.justifySelf="center"; box.appendChild(tag);}
     }
   });
+  EQ.forEach(e=>{ const off=notInPack(e); ["q_","e_"].forEach(pf=>{ const el=$(pf+e.k); el.readOnly=off; el.closest(".f").classList.toggle("locked",off); }); });
   renderChips();
 }
 FIELDS.forEach(k=>$(k).addEventListener("input",()=>{manual.add(k);recompute();}));
@@ -1781,7 +1790,9 @@ function validate(r){
   const L={painter:"Painter",stow:"Stow Height",volume:"Tüp Hacmi",c1sn:"Tüp 1 Seri",c1co2:"Tüp 1 CO₂",c1n2:"Tüp 1 N₂"};
   Object.keys(L).forEach(k=>{if(!r[k]) errs.push(L[k]);});
   ["c1hyd","c2hyd"].forEach(k=>{if(r[k]&&!DATE_RE.test(r[k])) errs.push("Hidro test tarihi (GG.AA.YYYY)");});
-  EQ.forEach(e=>{if(!r["q_"+e.k]) errs.push(e.tr+" adet"); if(!EXP_RE.test(r["e_"+e.k])) errs.push(e.tr+" SKT");});
+  EQ.forEach(e=>{ if(!r["q_"+e.k]) errs.push(e.tr+" adet");
+    const yok = r["q_"+e.k]==="-" || Number(r["q_"+e.k])===0;
+    if(!yok && !EXP_RE.test(r["e_"+e.k])) errs.push(e.tr+" SKT"); });
   CH.forEach(([p,t])=>["sn","wp","m"].forEach(s=>{if(!r[p+"_"+s]) errs.push(t.split(" (")[0]+" "+({sn:"seri",wp:"basınç",m:"ölçüm"})[s]);}));
   return [...new Set(errs)];
 }
@@ -1791,6 +1802,7 @@ const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>
 // Şablonlarda kullanılan ek alanlar (kayıttan türetilir)
 function docData(r){
   const d={...r};
+  EQ.forEach(e=>{ if(d["q_"+e.k]==="-" || Number(d["q_"+e.k])===0){ d["q_"+e.k]="-"; d["e_"+e.k]="-"; } });   // pakette olmayan kalem
   const m=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec(r.mfg||"");
   d.mfg_my = m? `${m[2]}/${m[3]}` : (r.mfg||"");
   d.volume = String(r.volume||"").replace(/\s*l(t|itre)?\s*$/i,"").trim().replace(",",".");   // 7,5 -> 7.5 (İngilizce belge)
