@@ -209,6 +209,9 @@ body:not(.authed) .pnav{display:none}
 .side a.nav{text-decoration:none}
 @media (min-width:1100px){ body.authed .pnav{display:none} .side .nav em.w{background:#E8590C} }
 
+.savedbox{display:grid;gap:10px;font-size:15px;font-weight:600;padding:14px 16px;border:1px solid currentColor}
+.savedbox .acts{display:flex;gap:8px;flex-wrap:wrap}
+.savedbox .acts button{border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 13.5px var(--sans);padding:9px 12px;border-radius:9px;cursor:pointer}
 /* ---------- Adım 2a: test sayfası bilgisayar görünümü ---------- */
 #viewForm>.col{display:contents}
 @media (min-width:1100px){
@@ -677,15 +680,25 @@ $("btnSave").onclick=async()=>{
   try{
     const b64=await (await buildXlsx(r)).generateAsync({type:"base64",compression:"DEFLATE"});
     const j=await api({action:"testSave",record:r,xlsx:b64});
-    if(j.ok){ tests=j.tests||tests; cur={...testOf(r.serial)||r}; store.set("test_cache",{certs,tests,staff});
-      msg("topMsg", j.excel==="ok"?"ok":"info", j.excel==="ok"
-        ? `${r.serial} test formu kaydedildi, Excel Drive'a gönderildi. Telefona almak için "Excel İndir".`
-        : `${r.serial} kaydedildi ama Excel Drive'a gönderilemedi: ${j.excel||""}`);
-      renderList(); }
+    if(j.ok){ tests=j.tests||tests; store.set("test_cache",{certs,tests,staff,ilkSeri});
+      const ok=j.excel==="ok", saved={...r};
+      cur=null; busy(false); $("btnSave").textContent="Kaydet";
+      $("q").value=""; showView("wait");                         // kaydedilince listeye dönülür
+      savedBox("listMsg", ok?"ok":"info", ok ? `✓ ${r.serial} test formu kaydedildi. Excel Drive'a gönderildi.` : `${r.serial} kaydedildi ama Excel Drive'a gönderilemedi: ${j.excel||""}`, saved);
+      window.scrollTo({top:0,behavior:"smooth"}); return; }
     else msg("topMsg","err","Kaydedilemedi: "+j.error);
   }catch(err){ if(err.message!=="auth") msg("topMsg","err","Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin."); }
   busy(false); $("btnSave").textContent="Kaydet"; window.scrollTo({top:0,behavior:"smooth"});
 };
+function savedBox(where,kind,text,r){
+  const box=$(where); box.innerHTML="";
+  const d=document.createElement("div"); d.className="msg "+kind+" savedbox";
+  const p=document.createElement("div"); p.textContent=text; d.appendChild(p);
+  const a=document.createElement("div"); a.className="acts";
+  const b=document.createElement("button"); b.type="button"; b.textContent="Excel İndir";
+  b.onclick=()=>downloadXlsx(r).catch(e=>msg(where,"err","Excel oluşturulamadı: "+(e.message||e)));
+  a.appendChild(b); d.appendChild(a); box.appendChild(d);
+}
 $("btnXlsx").onclick=async()=>{
   const r=collect(), e=validate(r);
   if(e.length){ msg("topMsg","err","Excel için eksik alanlar: "+e.join(", ")); window.scrollTo({top:0,behavior:"smooth"}); return; }
