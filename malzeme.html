@@ -244,7 +244,8 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(110px
 
   <div id="viewNew" hidden>
     <div id="topMsg"></div>
-    <section class="card"><h2>1 · Malzeme <small id="editNote"></small></h2><div class="body"><div class="kchips" id="kchips"></div></div></section>
+    <section class="card"><h2>1 · Malzeme <small id="editNote"></small></h2><div class="body"><div class="kchips" id="kchips"></div>
+      <div class="f" id="fAd" hidden><label for="digerAd">Malzeme adı</label><input id="digerAd" class="txt" list="adList" autocomplete="off" placeholder="Örn. Can yeleği, Emniyet valfi"><datalist id="adList"></datalist></div></div></section>
     <section class="card"><h2>2 · Lot Bilgisi</h2><div class="body">
       <div class="f" id="fLot"><label for="lot">Lot No</label><input id="lot" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Ambalajdaki lot / parti no"></div>
       <div class="f" id="fTed"><label for="ted">Tedarikçi <span class="tag auto" id="tedTag" hidden>OTO</span></label><input id="ted" class="txt" list="tedList" autocomplete="off" placeholder="Firma adı ya da Kendi üretim"><datalist id="tedList"></datalist></div>
@@ -283,7 +284,7 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(110px
 
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbzLROpJfsh2hrdu1x4kgBMC_PwQHXsXBxqKsVh1QU9admgBKD-bQ8F0Ss_Pj1Q_Fny2/exec";
-const KALEM = [["food","Gıda",1],["water","İçme suyu",1],["rocket","Paraşüt roket"],["smoke","Duman"],["flare","El maytabı"],["tpa","Isı koruyucu (TPA)"],
+const KALEM = [["food","Acil durum gıdası",1],["water","Acil durum suyu",1],["rocket","Paraşüt roket"],["smoke","Duman"],["flare","El maytabı"],["tpa","Isı koruyucu (TPA)"],
   ["aid","İlk yardım",1],["tab","Deniz tutması hapı"],["torch","El feneri pili"],["batt","İç-dış lamba pili"],["glue","Tamir kiti yapıştırıcı"],["rubber","Rubber kumaşı"]];
 const $=id=>document.getElementById(id);
 const store={ get(k,d){ try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;} }, set(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} } };
@@ -377,16 +378,28 @@ async function load(){
       store.set("mal_cache",{certs,izl,lots}); conn("on","Bağlı"); }
     else { conn("off","Hata"); msg(view==="list"?"listMsg":"topMsg","err", j.error==="Bilinmeyen işlem" ? "E-Tablo kodu güncel değil. Apps Script güncellemesini yapın." : "Okunamadı: "+j.error); }
   }catch(e){ if(e.message!=="auth") conn("off","Çevrimdışı"); }
-  $("lotCount").textContent=lots.length?`(${lots.length})`:"";
+  $("lotCount").textContent=lots.length?`(${lots.length})`:""; buildChips(); buildFilter();
   if(view==="list") renderList(); else if(sel) fillTed(false);
   renderNav();
 }
 
 // ---------- yeni giriş ----------
-KALEM.forEach(([k,ad])=>{ const b=document.createElement("button"); b.type="button"; b.textContent=ad; b.dataset.k=k;
-  b.onclick=()=>{ sel=k; renderChips(); fillTed(true); }; $("kchips").appendChild(b); });
+const slug=s=>"x_"+norm(s).replace(/[^A-Z0-9]+/g,"_").replace(/^_|_$/g,"").toLowerCase().slice(0,40);
+const isStd=k=>KALEM.some(x=>x[0]===k);
+const kName=k=>(KALEM.find(x=>x[0]===k)||[])[1] || ((lots.find(l=>l.k===k)||{}).ad) || "";
+function otherKinds(){ const m={}; lots.filter(l=>!isStd(l.k)).forEach(l=>{ if(!m[l.k]) m[l.k]=l.ad; }); return Object.entries(m).sort((a,b)=>a[1].localeCompare(b[1],"tr")); }
+function buildChips(){
+  const box=$("kchips"); box.innerHTML="";
+  const add=(k,ad,cls)=>{ const b=document.createElement("button"); b.type="button"; b.textContent=ad; b.dataset.k=k; if(cls) b.className=cls;
+    b.onclick=()=>{ sel=k; renderChips(); if(k!=="__new") fillTed(true); else { $("digerAd").focus(); } }; box.appendChild(b); };
+  KALEM.forEach(([k,ad])=>add(k,ad)); otherKinds().forEach(([k,ad])=>add(k,ad)); add("__new","+ Diğer malzeme");
+  $("adList").innerHTML=otherKinds().map(([,ad])=>`<option value="${ad.replace(/"/g,"&quot;")}">`).join("");
+  renderChips();
+}
 function renderChips(){ [...$("kchips").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===sel)); $("kchips").classList.remove("miss");
-  $("fSkt").querySelector("label").textContent= sel==="rubber" ? "SKT (varsa)" : "SKT"; }
+  $("fAd").hidden=sel!=="__new";
+  $("fSkt").querySelector("label").textContent= (sel==="rubber"||(sel&&!isStd(sel))) ? "SKT (varsa)" : "SKT"; }
+$("digerAd").addEventListener("change",()=>{ const v=$("digerAd").value.trim(); const ex=otherKinds().find(([,ad])=>norm(ad)===norm(v)); if(ex){ sel=ex[0]; renderChips(); fillTed(true); } });
 let tedAuto=false;
 function fillTed(force){
   const own=(KALEM.find(x=>x[0]===sel)||[])[2];
@@ -402,23 +415,25 @@ $("lot").addEventListener("input",()=>{ $("lot").value=$("lot").value.toLocaleUp
   $("notReq").textContent= kontrol==="Uygun Değil" ? "(zorunlu: ne sorun vardı, ne yapıldı)" : "(isteğe bağlı)"; });
 function resetForm(){
   sel=""; kontrol=""; editKey=null; tedAuto=false; $("editNote").textContent="";
-  ["lot","ted","skt","miktar","irs","not"].forEach(id=>$(id).value=""); $("gelis").value=todayISO();
+  ["lot","ted","skt","miktar","irs","not","digerAd"].forEach(id=>$(id).value=""); $("gelis").value=todayISO();
   [...$("kseg").children].forEach(x=>x.setAttribute("aria-pressed","false")); $("notReq").textContent="(isteğe bağlı)";
   document.querySelectorAll(".miss").forEach(x=>x.classList.remove("miss"));
   renderChips(); $("tedTag").hidden=true; $("fTed").classList.remove("isauto");
 }
 $("btnClear").onclick=()=>{ msg("topMsg"); resetForm(); };
-function collect(){ return { k:sel, lot:$("lot").value.trim().toLocaleUpperCase("tr-TR"), ted:$("ted").value.trim(), gelis:isoToTR($("gelis").value),
+function collect(){ const yeni=sel==="__new", ad=$("digerAd").value.trim();
+  return { k: yeni ? (ad?slug(ad):"") : sel, ad: yeni ? ad : kName(sel), lot:$("lot").value.trim().toLocaleUpperCase("tr-TR"), ted:$("ted").value.trim(), gelis:isoToTR($("gelis").value),
   skt:$("skt").value.trim(), miktar:$("miktar").value.trim(), irs:$("irs").value.trim().toLocaleUpperCase("tr-TR"), kontrol, not:$("not").value.trim() }; }
 function validate(r){
   const e=[]; document.querySelectorAll(".miss").forEach(x=>x.classList.remove("miss"));
   const bad=(id,t)=>{ e.push(t); const el=$(id); if(el) el.classList.add("miss"); };
-  if(!r.k) bad("kchips","Malzeme");
+  if(!r.k) bad(sel==="__new"?"fAd":"kchips", sel==="__new"?"Malzeme adı":"Malzeme");
   if(!r.lot) bad("fLot","Lot No");
   if(!r.ted) bad("fTed","Tedarikçi");
   if(!r.gelis) bad("fGelis","Geliş Tarihi");
-  if(r.k!=="rubber" && !/^(0[1-9]|1[0-2])\/\d{4}$/.test(r.skt)) bad("fSkt","SKT (AA/YYYY)");
-  if(r.k==="rubber" && r.skt && !/^(0[1-9]|1[0-2])\/\d{4}$/.test(r.skt)) bad("fSkt","SKT (AA/YYYY)");
+  const sktZorunlu = isStd(r.k) && r.k!=="rubber";
+  if(sktZorunlu && !/^(0[1-9]|1[0-2])\/\d{4}$/.test(r.skt)) bad("fSkt","SKT (AA/YYYY)");
+  if(!sktZorunlu && r.skt && !/^(0[1-9]|1[0-2])\/\d{4}$/.test(r.skt)) bad("fSkt","SKT (AA/YYYY)");
   if(!r.kontrol) bad("kseg","Giriş Kontrolü (Uygun / Uygun Değil)");
   if(r.kontrol==="Uygun Değil" && !r.not) bad("fNot","Uygun değilse not");
   return e;
@@ -431,15 +446,15 @@ $("btnSave").onclick=async()=>{
   try{
     const j=await api({action:"malSave",record:r,edit:editKey});
     if(j.ok){ lots=j.lots||lots; store.set("mal_cache",{certs,izl,lots}); $("lotCount").textContent=`(${lots.length})`;
-      const ad=(KALEM.find(x=>x[0]===r.k)||[])[1];
-      resetForm();                                                   // kaydedilince yeni giriş açılır
+      const ad=r.ad;
+      buildChips(); buildFilter(); resetForm();                                                   // kaydedilince yeni giriş açılır
       savedBox(`✓ ${ad} · ${r.lot} kaydedildi${r.kontrol==="Uygun Değil"?" (UYGUN DEĞİL olarak, sala takılamaz)":""}. Yeni giriş için form hazır.`, r.kontrol==="Uygun Değil"?"info":"ok"); }
     else msg("topMsg","err", j.error||"Kaydedilemedi");
   }catch(err){ if(err.message!=="auth") msg("topMsg","err","Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin."); }
   b.disabled=false; b.textContent="Kaydet"; window.scrollTo({top:0,behavior:"smooth"});
 };
 function editLot(l){
-  resetForm(); sel=l.k; renderChips(); fillTed(false);
+  resetForm(); sel=l.k; buildChips(); fillTed(false);
   $("lot").value=l.lot; $("ted").value=l.ted; $("gelis").value=trToISO(l.gelis)||todayISO(); $("skt").value=l.skt; $("miktar").value=l.miktar; $("irs").value=l.irs; $("not").value=l.not;
   kontrol=l.kontrol; [...$("kseg").children].forEach(x=>x.setAttribute("aria-pressed",x.dataset.v===kontrol));
   editKey=l.k+"|"+String(l.lot).toUpperCase(); $("editNote").textContent=`${l.lot} düzenleniyor`;
@@ -448,12 +463,14 @@ function editLot(l){
 }
 
 // ---------- lot defteri ----------
-$("fK").innerHTML='<option value="">Tüm malzemeler</option>'+KALEM.map(([k,ad])=>`<option value="${k}">${ad}</option>`).join("");
+function buildFilter(){ const v=$("fK").value;
+  $("fK").innerHTML='<option value="">Tüm malzemeler</option>'+KALEM.concat(otherKinds()).map(([k,ad])=>`<option value="${k}">${ad.replace(/</g,"&lt;")}</option>`).join(""); $("fK").value=v; }
+buildFilter();
 ["fK","fS"].forEach(id=>$(id).onchange=renderList); $("q").addEventListener("input",renderList);
 const certOf=s=>certs.find(c=>String(c.serial)===String(s));
 function usage(l){
   const rafts=izl.filter(r=>String(r["lot_"+l.k]||"").toUpperCase()===String(l.lot).toUpperCase()).map(r=>String(r.serial));
-  const units=l.k==="rubber"? null : rafts.reduce((s,x)=>{ const n=parseFloat(String((certOf(x)||{})["q_"+l.k]||"").replace(",",".")); return s+(isNaN(n)?0:n); },0);
+  const units=(l.k==="rubber"||!isStd(l.k))? null : rafts.reduce((s,x)=>{ const n=parseFloat(String((certOf(x)||{})["q_"+l.k]||"").replace(",",".")); return s+(isNaN(n)?0:n); },0);
   return {rafts,units};
 }
 let open="";
@@ -461,7 +478,7 @@ function renderList(){
   const fk=$("fK").value, fs=$("fS").value, q=norm($("q").value.trim());
   const rows=lots.map(l=>({l,u:usage(l)})).filter(({l,u})=>{
     if(fk&&l.k!==fk) return false;
-    const m=parseFloat(String(l.miktar).replace(",",".")), done=l.k!=="rubber"&&!isNaN(m)&&m>0&&u.units>=m;
+    const m=parseFloat(String(l.miktar).replace(",",".")), done=u.units!==null&&!isNaN(m)&&m>0&&u.units>=m;
     if(fs==="use"&&(l.kontrol==="Uygun Değil"||done)) return false;
     if(fs==="bad"&&l.kontrol!=="Uygun Değil") return false;
     return !q || norm([l.lot,l.ted,l.ad,l.irs].concat(u.rafts).join(" ")).includes(q);
@@ -471,15 +488,15 @@ function renderList(){
   if(!rows.length){ box.innerHTML=`<div class="empty">${lots.length?"Bu filtreyle eşleşen lot yok.":"Henüz malzeme girişi yok. \"Yeni Giriş\" sekmesinden ilk lotu kaydedin."}</div>`; return; }
   rows.forEach(({l,u})=>{
     const m=parseFloat(String(l.miktar).replace(",",".")), key=l.k+"|"+l.lot;
-    const pct = l.k==="rubber"||isNaN(m)||!m ? 0 : Math.min(100,Math.round(u.units/m*100));
-    const done=l.k!=="rubber"&&!isNaN(m)&&m>0&&u.units>=m;
+    const pct = u.units===null||isNaN(m)||!m ? 0 : Math.min(100,Math.round(u.units/m*100));
+    const done=u.units!==null&&!isNaN(m)&&m>0&&u.units>=m;
     const st=l.kontrol==="Uygun Değil"?["bad","Uygun değil"]:done?["done","Bitti"]:["ok","Uygun"];
     const d=document.createElement("div"); d.className="lr";
     const b=document.createElement("button"); b.type="button";
-    const used = l.k==="rubber" ? `${u.rafts.length} sal` : `${u.units} / ${l.miktar||"?"} · ${u.rafts.length} sal`;
+    const used = !isStd(l.k) ? `${l.miktar||"–"} · sala bağlı değil` : l.k==="rubber" ? `${u.rafts.length} sal` : `${u.units} / ${l.miktar||"?"} · ${u.rafts.length} sal`;
     b.innerHTML=`<span class="m"></span><span class="l"></span><span class="meta t"></span><span class="meta g"></span><span class="meta s"></span>
       <span class="use"><span class="b"><i style="width:${pct}%"></i></span><span class="u"></span></span><span class="st ${st[0]}"></span>`;
-    b.querySelector(".m").textContent=l.ad; b.querySelector(".l").textContent=l.lot; b.querySelector(".t").textContent=l.ted;
+    b.querySelector(".m").textContent=kName(l.k)||l.ad; b.querySelector(".l").textContent=l.lot; b.querySelector(".t").textContent=l.ted;
     b.querySelector(".g").textContent=l.gelis; b.querySelector(".s").textContent=l.skt? "SKT "+l.skt : ""; b.querySelector(".u").textContent=used; b.querySelector(".st").textContent=st[1];
     b.onclick=()=>{ open=open===key?"":key; renderList(); };
     d.appendChild(b);
@@ -487,7 +504,8 @@ function renderList(){
       const det=document.createElement("div"); det.className="det";
       det.innerHTML=`<div><b>Kullanıldığı can salları</b></div><div class="rafts"></div><div class="row"></div>`;
       const rb=det.querySelector(".rafts");
-      if(u.rafts.length) u.rafts.forEach(s=>{ const sp=document.createElement("span"); sp.textContent=s; rb.appendChild(sp); }); else rb.textContent="Henüz bir sala takılmadı.";
+      if(!isStd(l.k)) rb.textContent="Bu malzeme şimdilik sallara bağlanmıyor, sadece giriş kaydı tutuluyor.";
+      else if(u.rafts.length) u.rafts.forEach(s=>{ const sp=document.createElement("span"); sp.textContent=s; rb.appendChild(sp); }); else rb.textContent="Henüz bir sala takılmadı.";
       const info=det.querySelector(".row"); const t=document.createElement("span"); t.className="m";
       t.textContent=[l.irs&&"İrsaliye "+l.irs, l.not, l.by&&"Giren: "+l.by].filter(Boolean).join(" · "); info.appendChild(t);
       const e=document.createElement("button"); e.type="button"; e.textContent="Düzenle"; e.onclick=()=>editLot(l); info.appendChild(e);
@@ -498,7 +516,7 @@ function renderList(){
 }
 
 // ---------- boot ----------
-resetForm(); showUser();
+buildChips(); resetForm(); showUser();
 if(!API_OK) msg("loginMsg","err","E-Tablo bağlantı adresi ayarlanmamış.");
 if(auth){ const c=store.get("mal_cache",null); if(c){certs=c.certs||[];izl=c.izl||[];lots=c.lots||[];} showView(location.hash==="#defter"?"list":"new"); load(); }
 else showView("login");
