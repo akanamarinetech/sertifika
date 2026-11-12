@@ -260,6 +260,7 @@ select{font-family:var(--sans)!important}
   <!-- ============ YENİ SATIŞ ============ -->
   <div id="viewNew" hidden>
     <div id="topMsg"></div>
+    <div class="msg info" id="editBar" hidden style="display:flex;justify-content:space-between;gap:10px;align-items:center"><span id="editTxt"></span><button class="lnk" type="button" id="btnEditCancel">Düzenlemeyi bırak</button></div>
     <section class="card"><h2>1 · Müşteri ve Belge</h2><div class="body">
       <div class="f" id="fFirma"><label for="firma">Firma</label><input id="firma" class="txt" list="firmList" autocomplete="off" placeholder="Firma adı yazın ya da listeden seçin"><datalist id="firmList"></datalist>
         <small id="firmaNew" style="font-size:12px;color:var(--accent)" hidden>Yeni firma: kaydedince firma listesine eklenir.</small></div>
@@ -376,7 +377,7 @@ function conn(kind,text){ $("conn").className="conn "+kind; $("conn").lastChild.
 const API_OK=/^https:\/\/script\.google\.com\//.test(API_URL);
 let auth=store.get("cert_auth",null);
 let D={records:[],tests:[],izl:[],sks:[],lots:[],firms:[],sales:[],gecmis:{},ilkSeri:""};
-let view="new", cart=[], mal=[];
+let view="new", cart=[], mal=[], editSid="";
 async function api(body){
   const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({...body,pin:auth&&auth.pin})});
   const j=await res.json();
@@ -475,7 +476,7 @@ function estPyro(model,k,pack){ const c=capOf(model), b=pack==="B";
   return {rocket:b?2:4, smoke:b?1:2, flare:b?3:6, tpa:Math.max(2,Math.ceil(c/10))}[k]||0; }
 function pyroOfRaft(serial,model,pack){ const c=certOf(serial); const o={};
   PYRO.forEach(([k])=>{ const q=c? String(c["q_"+k]??"") : ""; o[k]= c&&q!=="" ? (q==="-"?0:num(q)) : estPyro(model,k,pack); }); return o; }
-const soldMap=()=>{ const m={}; D.sales.filter(s=>s.tur==="Can salı").forEach(s=>m[String(s.serial)]=s); return m; };
+const soldMap=()=>{ const m={}; D.sales.filter(s=>s.tur==="Can salı"&&(!editSid||s.sid!==editSid)).forEach(s=>m[String(s.serial)]=s); return m; };
 function salDurum(c){
   const s=String(c.serial), sold=soldMap()[s];
   if(sold) return {ok:false,t:`Satıldı · ${sold.firma}`};
@@ -539,7 +540,8 @@ function renderCart(){
     tr.children[0].textContent=m.ad; tr.children[1].textContent=m.adet; tr.children[2].textContent=m.lot||"–"; tr.children[3].textContent=m.skt||"–";
     tr.querySelector("button").onclick=()=>{ mal.splice(i,1); renderCart(); }; tm.appendChild(tr); });
   const pyro=cart.reduce((s,r)=>{ const p=pyroOfRaft(r.serial,r.model,r.pack); return s+p.rocket+p.smoke+p.flare; },0)+mal.filter(m=>["rocket","smoke","flare"].includes(m.k)).reduce((s,m)=>s+num(m.adet),0);
-  $("btnSave").textContent= cart.length||mal.length ? `Kaydet · ${cart.length} can salı${mal.length?` + ${mal.length} malzeme`:""} · ${pyro} piroteknik` : "Kaydet";
+  const kw=editSid?"Değişiklikleri kaydet":"Kaydet";
+  $("btnSave").textContent= cart.length||mal.length ? `${kw} · ${cart.length} can salı${mal.length?` + ${mal.length} malzeme`:""} · ${pyro} piroteknik` : kw;
 }
 $("mK").onchange=()=>{ const k=$("mK").value;
   const lots=D.lots.filter(l=>l.k===k&&l.kontrol!=="Uygun Değil").sort((a,b)=>dk(b.gelis).localeCompare(dk(a.gelis)));
@@ -550,8 +552,9 @@ $("btnMal").onclick=()=>{ const k=$("mK").value, adet=$("mAdet").value.trim();
   if(!k){ $("fMk").classList.add("miss"); return; } if(!(num(adet)>0)){ $("fMad").classList.add("miss"); return; }
   mal.push({k,ad:(KALEM.find(x=>x[0]===k)||[])[1],adet,lot:$("mLot").value.trim().toLocaleUpperCase("tr-TR"),skt:$("mSkt").value.trim()});
   $("mK").value=""; $("mAdet").value=""; $("mLot").value=""; $("mSkt").value=""; renderCart(); };
-function resetNew(){ cart=[]; mal=[]; $("firma").value=""; $("irs").value=""; $("tarih").value=todayISO(); $("firmaNew").hidden=true; $("salQ").value=""; renderPick(); renderCart(); }
+function resetNew(){ editSid=""; $("editBar").hidden=true; cart=[]; mal=[]; $("firma").value=""; $("irs").value=""; $("tarih").value=todayISO(); $("firmaNew").hidden=true; $("salQ").value=""; renderPick(); renderCart(); }
 $("btnClear").onclick=()=>{ msg("topMsg"); resetNew(); };
+$("btnEditCancel").onclick=()=>{ msg("topMsg"); resetNew(); };
 
 // Teslim Tutanağı (Excel)
 const xesc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -579,12 +582,13 @@ $("btnSave").onclick=async()=>{
   const lines=cart.map(r=>({tur:"Can salı",serial:r.serial,model:r.model,pack:r.pack})).concat(mal.map(m=>({tur:"Malzeme",k:m.k,ad:m.ad,adet:m.adet,lot:m.lot,skt:m.skt})));
   const b=$("btnSave"); b.disabled=true; const lbl=b.textContent; b.textContent="Kaydediliyor…";
   try{
-    const j=await api({action:"satisSave",header:h,lines});
+    const wasEdit=!!editSid;
+    const j=await api({action:"satisSave",header:h,lines,edit:editSid});
     if(j.ok){ D.sales=j.sales||D.sales; D.firms=j.firms||D.firms; store.set("satis_cache",D);
       const hh={...h}, ll=lines.slice(); resetNew();
       const box=$("topMsg"); box.innerHTML=""; const d=document.createElement("div"); d.className="msg ok savedbox";
       const p=document.createElement("div"); const nR=ll.filter(l=>l.tur==="Can salı").length, mL=ll.filter(l=>l.tur!=="Can salı");
-      p.textContent=`✓ Satış kaydedildi: ${hh.firma} · ${[nR?nR+" can salı":"", ...mL.map(m=>m.adet+" "+m.ad)].filter(Boolean).join(" + ")}. Yeni satış için form hazır.`; d.appendChild(p);
+      p.textContent=`✓ Satış ${wasEdit?"güncellendi":"kaydedildi"}: ${hh.firma} · ${[nR?nR+" can salı":"", ...mL.map(m=>m.adet+" "+m.ad)].filter(Boolean).join(" + ")}. Yeni satış için form hazır.`; d.appendChild(p);
       const a=document.createElement("div"); a.className="acts"; const t=document.createElement("button"); t.type="button"; t.textContent="Teslim Tutanağı İndir";
       t.onclick=()=>teslimXlsx(hh,ll).catch(err=>msg("topMsg","err","Teslim tutanağı oluşturulamadı: "+(err.message||err)));
       const f=document.createElement("button"); f.type="button"; f.textContent="Firma kartını aç"; f.onclick=()=>{ go("firms"); openFirm(hh.firma); };
@@ -616,9 +620,17 @@ function renderFirms(){
   list.forEach(({ad,st})=>{ const tr=document.createElement("tr"); tr.className="frow";
     tr.innerHTML=`<td><b style="color:var(--ink)"></b></td><td class="n mono"></td><td class="n mono"></td><td></td><td><button class="lnk" type="button">Ne aldı? →</button></td>`;
     tr.querySelector("b").textContent=ad; tr.children[1].textContent=st.rafts.length; tr.children[2].textContent=st.py.rocket+st.py.smoke+st.py.flare; tr.children[3].textContent=st.last||"–";
+    if(!st.rows.length){ const cell=tr.children[4]; cell.innerHTML="";
+      if(confirmFirm===ad){ cell.innerHTML=`<span class="confirm">Silinsin mi? <button type="button">Evet</button><button type="button" class="no">Vazgeç</button></span>`;
+        cell.querySelectorAll("button")[0].onclick=e=>{ e.stopPropagation(); delFirm(ad); }; cell.querySelectorAll("button")[1].onclick=e=>{ e.stopPropagation(); confirmFirm=""; renderFirms(); }; }
+      else { const b=document.createElement("button"); b.type="button"; b.className="lnk red"; b.textContent="Firmayı sil"; b.onclick=e=>{ e.stopPropagation(); confirmFirm=ad; renderFirms(); }; cell.appendChild(b); } }
     tr.onclick=()=>openFirm(ad); tb.appendChild(tr); });
 }
-let openDet="", confirmSid="";
+let openDet="", confirmSid="", confirmFirm="";
+async function delFirm(ad){
+  try{ const j=await api({action:"firmaSil",ad}); if(j.ok){ D.firms=j.firms||D.firms; store.set("satis_cache",D); confirmFirm=""; msg("firmMsg","ok",ad+" silindi."); renderFirms(); }
+    else msg("firmMsg","err",j.error||"Silinemedi"); }catch(e){ if(e.message!=="auth") msg("firmMsg","err","Sunucuya ulaşılamadı."); }
+}
 function openFirm(ad){
   const st=firmStats(ad); $("firmList2").hidden=true; const box=$("firmCard"); box.hidden=false; box.innerHTML="";
   const top=document.createElement("div"); top.className="headline"; top.style.margin="0 0 12px";
@@ -647,7 +659,8 @@ function openFirm(ad){
     if(r.sid!==lastSid){ lastSid=r.sid; const sp=document.createElement("span"); sp.style.marginLeft="10px";
       if(confirmSid===r.sid){ sp.className="confirm"; sp.innerHTML=`Bu satışın tamamı silinsin mi? <button type="button">Evet, sil</button><button type="button" class="no">Vazgeç</button>`;
         sp.children[0].onclick=()=>delSale(r.sid,ad); sp.children[1].onclick=()=>{ confirmSid=""; openFirm(ad); }; }
-      else { const d=document.createElement("button"); d.type="button"; d.className="lnk red"; d.textContent="Satışı sil"; d.onclick=()=>{ confirmSid=r.sid; openFirm(ad); }; sp.appendChild(d); }
+      else { const ed=document.createElement("button"); ed.type="button"; ed.className="lnk"; ed.textContent="Düzenle"; ed.style.marginRight="10px"; ed.onclick=e=>{ e.stopPropagation(); editSale(r.sid); }; sp.appendChild(ed);
+        const d=document.createElement("button"); d.type="button"; d.className="lnk red"; d.textContent="Satışı sil"; d.onclick=()=>{ confirmSid=r.sid; openFirm(ad); }; sp.appendChild(d); }
       act.appendChild(sp); }
     tb.appendChild(tr);
     if(raft&&openDet===r.serial){ const c=certOf(r.serial); const d=document.createElement("tr"); d.className="det";
@@ -660,6 +673,18 @@ function openFirm(ad){
       d.appendChild(td); tb.appendChild(d); }
   });
   box.appendChild(sec);
+}
+// Satışı düzenle: Yeni Satış ekranında aynen açılır, kaydedince aynı satış güncellenir
+function editSale(sid){
+  const rows=D.sales.filter(s=>s.sid===sid); if(!rows.length) return;
+  editSid=sid; const h=rows[0];
+  cart=rows.filter(r=>r.tur==="Can salı").map(r=>{ const c=certOf(r.serial); const old=!c||(D.ilkSeri&&String(r.serial)<D.ilkSeri);
+    return {serial:String(r.serial),model:r.model,pack:r.pack||"A",old:!!old,nocert:!c}; });
+  mal=rows.filter(r=>r.tur!=="Can salı").map(r=>({k:r.k,ad:r.ad,adet:r.adet,lot:r.lot,skt:r.skt}));
+  go("new");
+  $("firma").value=h.firma; $("irs").value=h.irs||""; const m=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec(h.tarih||""); $("tarih").value=m?`${m[3]}-${m[2]}-${m[1]}`:todayISO();
+  $("firmaNew").hidden=true; msg("topMsg"); $("editTxt").textContent=`${h.firma} · ${h.tarih} satışı düzenleniyor. Değiştirip "Değişiklikleri kaydet"e basın.`; $("editBar").hidden=false;
+  renderPick(); renderCart(); window.scrollTo({top:0});
 }
 async function delSale(sid,ad){
   try{ const j=await api({action:"satisSil",sid}); if(j.ok){ D.sales=j.sales||D.sales; store.set("satis_cache",D); confirmSid=""; msg("firmMsg","ok","Satış silindi."); openFirm(ad); }
