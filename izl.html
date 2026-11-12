@@ -382,8 +382,8 @@ function demoData(){
 // ---------- ortak menü (bütün sayfalarda aynı) ----------
 const MENU=[{g:"Sertifika"},{id:"new",t:"Yeni Sertifika",href:"index.html#new"},{id:"rec",t:"Sertifika Kayıtları",href:"index.html#rec"},
   {g:"Kalite"},{id:"test",t:"Test Kontrol Formu",href:"test.html",warn:1},{id:"izl",t:"İzlenebilirlik",href:"izl.html",warn:1},
-  {id:"mal",t:"Malzeme Girişi",href:"malzeme.html"}];
-const PAGES=[{t:"Sertifika",href:"index.html",ids:["new","rec"]},{t:"Test",href:"test.html",ids:["test"]},{t:"Lot",href:"izl.html",ids:["izl"]},{t:"Malzeme",href:"malzeme.html",ids:["mal"]}];
+  {id:"sk",t:"Son Kontrol",href:"sk.html",warn:1},{id:"mal",t:"Malzeme Girişi",href:"malzeme.html"}];
+const PAGES=[{t:"Sertifika",href:"index.html",ids:["new","rec"]},{t:"Test",href:"test.html",ids:["test"]},{t:"Lot",href:"izl.html",ids:["izl"]},{t:"Son Kontrol",href:"sk.html",ids:["sk"]},{t:"Malzeme",href:"malzeme.html",ids:["mal"]}];
 function drawNav(active,badges,local){
   badges=badges||{}; local=local||{};
   const nav=document.getElementById("nav");
@@ -407,7 +407,7 @@ function drawNav(active,badges,local){
 const isAdmin=()=>!!(auth&&auth.role==="yonetici");
 const isDesk=()=>window.matchMedia("(min-width:1100px)").matches;
 function waitingCerts(){ return certs.filter(c=>c.status!=="İptal"&&c.status!=="Taslak"&&!izlOf(c.serial)&&(!ilkSeri||String(c.serial)>=ilkSeri)); }
-function renderNav(){ const sc=store.get("cert_sayac",{}); drawNav("izl",{izl:waitingCerts().length,rec:certs.length,test:sc.test||0}); }
+function renderNav(){ const sc=store.get("cert_sayac",{}); drawNav("izl",{izl:waitingCerts().length,rec:certs.length,test:sc.test||0,sk:sc.sk||0}); }
 $("sLogo").src=$("logo").src; $("sLogout").onclick=()=>logout("");
 // ---------- views ----------
 let listMode="wait";
