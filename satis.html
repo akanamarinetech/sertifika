@@ -272,6 +272,7 @@ select{font-family:var(--sans)!important}
     <section class="card"><h2>2 · Can Salları <small>seri no ile ekleyin, içerik sertifikadan gelir</small></h2><div class="body">
       <div class="addrow"><div class="f"><label for="salQ">Seri no ya da tip ara</label><input id="salQ" inputmode="search" autocomplete="off" placeholder="Örn. 20260753 ya da T6"></div></div>
       <div class="picker" id="salPick"></div>
+      <div class="note" style="padding:0" id="pickNote">"Eski üretim": kalite formları başlamadan önce üretilen sallar, formsuz satılabilir. Daha önce teslim edilmiş bir salı tekrar eklemeyin.</div>
       <div id="eskiBox" hidden class="body" style="padding:0;gap:8px">
         <div class="note" style="padding:0">Bu seri no sistemde yok. Sistemden önce üretilmiş bir salsa <b>geçmiş kayıt</b> olarak eklenebilir:</div>
         <div class="grid2"><div class="f"><label for="eskiModel">Tip</label><select id="eskiModel"></select></div>
@@ -291,7 +292,7 @@ select{font-family:var(--sans)!important}
         <div class="f"><label for="mLot">Lot No</label><input id="mLot" list="mLotList" autocapitalize="characters" autocomplete="off"><datalist id="mLotList"></datalist></div>
         <div class="f"><label for="mSkt">SKT</label><input id="mSkt" placeholder="AA/YYYY" inputmode="decimal"></div>
       </div>
-      <button class="btn ghost" type="button" id="btnMal">+ Malzemeyi ekle</button>
+      <button class="btn ghost" type="button" id="btnMal">+ Satışa ekle</button>
     </div>
       <div class="tblwrap"><table class="tbl" id="malTbl"><thead><tr><th>Malzeme</th><th class="n">Adet</th><th>Lot No</th><th>SKT</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
@@ -480,7 +481,7 @@ function salDurum(c){
   if(sold) return {ok:false,t:`Satıldı · ${sold.firma}`};
   if(c.status==="Taslak") return {ok:false,t:"Sertifika taslak"};
   if(c.status==="İptal") return {ok:false,t:"Sertifika iptal"};
-  if(D.ilkSeri && s<D.ilkSeri) return {ok:true,t:"Sistem öncesi",old:1};
+  if(D.ilkSeri && s<D.ilkSeri) return {ok:true,t:"Eski üretim",old:1};
   const miss=[]; if(!D.tests.some(t=>String(t.serial)===s)) miss.push("test");
   if(!D.izl.some(t=>String(t.serial)===s)) miss.push("lot");
   const sk=D.sks.find(t=>String(t.serial)===s);
@@ -528,7 +529,7 @@ function renderCart(){
     tr.innerHTML=`<td class="mono"></td><td></td><td class="mono" style="font-size:12.5px"></td><td style="font-size:12.5px"></td><td></td><td><button class="lnk red" type="button">Çıkar</button></td>`;
     tr.children[0].textContent=r.serial; tr.children[1].textContent=`ANA-${r.model} · ${r.pack}`; tr.children[2].textContent=[c.c1sn,c.c2sn].filter(Boolean).join(" / ")||"–";
     tr.children[3].textContent=contentText(r);
-    tr.children[4].innerHTML= r.nocert? `<span class="chip g">Geçmiş kayıt</span>` : r.old? `<span class="chip ok">Sertifika ✓</span> <span class="chip g">Sistem öncesi</span>` : `<span class="chip ok">Sertifika ✓</span> <span class="chip ok">Test ✓</span> <span class="chip ok">Lot ✓</span> <span class="chip ok">Son kontrol ✓</span>`;
+    tr.children[4].innerHTML= r.nocert? `<span class="chip g">Geçmiş kayıt</span>` : r.old? `<span class="chip ok">Sertifika ✓</span> <span class="chip g">Eski üretim · kalite formu aranmaz</span>` : `<span class="chip ok">Sertifika ✓</span> <span class="chip ok">Test ✓</span> <span class="chip ok">Lot ✓</span> <span class="chip ok">Son kontrol ✓</span>`;
     tr.querySelector("button").onclick=()=>{ cart.splice(i,1); renderPick(); renderCart(); };
     tb.appendChild(tr); });
   const tm=$("malTbl").tBodies[0]; tm.innerHTML="";
@@ -567,6 +568,8 @@ async function teslimXlsx(h,lines){
   document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},3000);
 }
 $("btnSave").onclick=async()=>{
+  // kutularda doldurulmuş ama "+ Malzemeyi ekle"ye basılmamış malzeme varsa kendiliğinden eklenir
+  if($("mK").value && num($("mAdet").value)>0) $("btnMal").onclick();
   document.querySelectorAll(".miss").forEach(x=>x.classList.remove("miss"));
   const h={firma:$("firma").value.replace(/\s+/g," ").trim(), tarih:isoToTR($("tarih").value), irs:$("irs").value.trim().toLocaleUpperCase("tr-TR")};
   const ex=D.firms.find(f=>norm(f.ad)===norm(h.firma)); if(ex) h.firma=ex.ad;
@@ -580,7 +583,8 @@ $("btnSave").onclick=async()=>{
     if(j.ok){ D.sales=j.sales||D.sales; D.firms=j.firms||D.firms; store.set("satis_cache",D);
       const hh={...h}, ll=lines.slice(); resetNew();
       const box=$("topMsg"); box.innerHTML=""; const d=document.createElement("div"); d.className="msg ok savedbox";
-      const p=document.createElement("div"); p.textContent=`✓ Satış kaydedildi: ${hh.firma} · ${cart.length||ll.filter(l=>l.tur==="Can salı").length} can salı${ll.some(l=>l.tur!=="Can salı")?` + ${ll.filter(l=>l.tur!=="Can salı").length} malzeme`:""}. Yeni satış için form hazır.`; d.appendChild(p);
+      const p=document.createElement("div"); const nR=ll.filter(l=>l.tur==="Can salı").length, mL=ll.filter(l=>l.tur!=="Can salı");
+      p.textContent=`✓ Satış kaydedildi: ${hh.firma} · ${[nR?nR+" can salı":"", ...mL.map(m=>m.adet+" "+m.ad)].filter(Boolean).join(" + ")}. Yeni satış için form hazır.`; d.appendChild(p);
       const a=document.createElement("div"); a.className="acts"; const t=document.createElement("button"); t.type="button"; t.textContent="Teslim Tutanağı İndir";
       t.onclick=()=>teslimXlsx(hh,ll).catch(err=>msg("topMsg","err","Teslim tutanağı oluşturulamadı: "+(err.message||err)));
       const f=document.createElement("button"); f.type="button"; f.textContent="Firma kartını aç"; f.onclick=()=>{ go("firms"); openFirm(hh.firma); };
