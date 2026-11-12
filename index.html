@@ -1790,15 +1790,14 @@ function applyRole(){ showUser(); renderRecs(); renderNav(); }
 function draftCount(){ return records.filter(r=>isDraft(r)).length+queue.length; }
 function renderNav(){
   const adm=isAdmin();
-  const nRec=adm? sortedRecs().length : draftCount();
-  $("tabRec").firstChild.textContent=adm?"Kayıtlar ":"Taslaklar ";
-  $("tabRec").hidden=!adm && nRec===0 && curView!=="rec";
+  const nRec=sortedRecs().length;
+  $("tabRec").firstChild.textContent="Kayıtlar ";
+  $("tabRec").hidden=false;
   $("tabsBox").hidden=curView==="login" || ($("tabRec").hidden && $("tabStock").hidden);
-  const items=[["grp","Sertifika"],["new","Yeni Sertifika"],["rec",adm?"Sertifika Kayıtları":"Taslaklar",nRec]];
+  const items=[["grp","Sertifika"],["new","Yeni Sertifika"],["rec","Sertifika Kayıtları",nRec]];
   const nav=$("nav"); nav.innerHTML="";
   items.forEach(([id,label,n])=>{
     if(id==="grp"){ const g=document.createElement("div"); g.className="grp"; g.textContent=label; nav.appendChild(g); return; }
-    if(id==="rec" && !adm && !n && curView!=="rec") return;
     const b=document.createElement("button"); b.type="button"; b.className="nav"+(curView===id?" on":"");
     b.textContent=label;
     if(n){ const em=document.createElement("em"); em.textContent=n; b.appendChild(em); }
@@ -1982,7 +1981,7 @@ async function saveForm(draft){
   if(status==="saved"||status==="queued"){
     let text;
     if(draft) text = status==="saved"
-      ? `${r.serial} taslak olarak kaydedildi. Sonra ${isAdmin()?"Kayıtlar":"Taslaklar"} bölümünden "Devam et" ile tamamlayabilirsin. Yeni sertifika için Temizle.`
+      ? `${r.serial} taslak olarak kaydedildi. Sonra Kayıtlar bölümünden "Devam et" ile tamamlayabilirsin. Yeni sertifika için Temizle.`
       : `İnternet yok: ${r.serial} taslağı telefonda bekletiliyor, internet gelince E-Tablo'ya gönderilecek.`;
     else text = status==="saved"
       ? (driveWarn ? `${r.serial} E-Tablo'ya kaydedildi ama bir sorun oldu: ${driveWarn} Yöneticinize haber verin.`
@@ -2053,15 +2052,15 @@ $("tabRec").onclick=()=>{showView("rec");renderRecs();refresh();};
 $("q").addEventListener("input",renderRecs);
 function renderRecs(){
   const adm=isAdmin();
-  const all=sortedRecs().filter(r=>adm||isDraft(r)||r._pending);
+  const all=sortedRecs();
   $("recCount").textContent=all.length?`(${all.length})`:"";
-  $("recSub").textContent=all.length?(adm?`${all.length} sertifika`:`${all.length} taslak`):"";
-  $("recTitle").textContent=adm?"Kayıtlı Sertifikalar":"Taslaklarım"; $("recHint").hidden=true;   // E-Tablo'da iptal menüsü yok, yanıltmasın
+  $("recSub").textContent=all.length?`${all.length} sertifika`:"";
+  $("recTitle").textContent="Kayıtlı Sertifikalar"; $("recHint").hidden=true;   // E-Tablo'da iptal menüsü yok, yanıltmasın
   if(typeof renderNav==="function" && $("nav")) renderNav();
   const q=$("q").value.trim().toLowerCase();
   const list=all.filter(r=>!q||String(r.serial).includes(q)||String(r.model).toLowerCase().includes(q)||String(r.by||"").toLowerCase().includes(q));
   const box=$("recList"); box.innerHTML="";
-  if(!list.length){box.innerHTML=`<div class="empty">${all.length?"Aramayla eşleşen kayıt yok.":adm?"Henüz kayıt yok. Yeni Sertifika sekmesinden ilk sertifikayı kaydedin.":"Yarım kalmış taslağın yok."}</div>`;return;}
+  if(!list.length){box.innerHTML=`<div class="empty">${all.length?"Aramayla eşleşen kayıt yok.":"Henüz kayıt yok. Yeni Sertifika sekmesinden ilk sertifikayı kaydedin."}</div>`;return;}
   list.forEach(r=>{
     const row=document.createElement("div"); row.className="rec";
     const left=document.createElement("div");
