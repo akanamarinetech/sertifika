@@ -193,6 +193,15 @@ select{width:100%;font:500 15px var(--sans);color:var(--fg);background:var(--fie
   body.authed .bar .in{max-width:1400px}
   body.authed #viewRec{max-width:1000px}
 }
+.pnav{display:flex;gap:6px;overflow-x:auto;margin:2px 0 10px;scrollbar-width:none}
+.pnav::-webkit-scrollbar{display:none}
+.pnav a{flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 13.5px var(--sans);text-decoration:none}
+.pnav a.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pnav em{font-style:normal;font:700 11px var(--mono);background:var(--accent);color:#fff;padding:1px 6px;border-radius:9px}
+.pnav a.on em{background:rgba(255,255,255,.3)}
+body:not(.authed) .pnav{display:none}
+.side a.nav{text-decoration:none}
+@media (min-width:1100px){ body.authed .pnav{display:none} .side .nav em.w{background:#E8590C} }
 </style>
 </head>
 <body>
@@ -222,6 +231,7 @@ select{width:100%;font:500 15px var(--sans);color:var(--fg);background:var(--fie
     </section>
   </div>
 
+  <nav class="pnav" id="pnav" aria-label="Sayfalar"></nav>
   <div class="tabs" role="tablist" id="tabsBox">
     <button id="tabNew" role="tab" aria-selected="true">Yeni Sertifika</button>
     <button id="tabRec" role="tab" aria-selected="false">Kayıtlar <span id="recCount"></span></button>
@@ -1772,7 +1782,7 @@ async function refresh(){
     if(!j.ok) throw new Error(j.error||"Sunucu hatası");
     records=j.records||[]; store.set("cert_records",records); setTypes(j.types);
     if(j.user && j.user!==auth.name){ auth.name=j.user; store.set("cert_auth",auth); showUser(); }
-    setRole(j.role);
+    setRole(j.role); setSayac(j.sayac);
     conn(queue.length?"wait":"on", queue.length?`${queue.length} bekliyor`:"Bağlı");
   }catch(e){ if(e.message==="auth") return; conn("off","Çevrimdışı"); }
   recompute(); renderRecs();
@@ -1788,23 +1798,37 @@ function setRole(role){
 }
 function applyRole(){ showUser(); renderRecs(); renderNav(); }
 function draftCount(){ return records.filter(r=>isDraft(r)).length+queue.length; }
-function renderNav(){
-  const adm=isAdmin();
-  const nRec=sortedRecs().length;
-  $("tabRec").firstChild.textContent="Kayıtlar ";
-  $("tabRec").hidden=false;
-  $("tabsBox").hidden=curView==="login" || ($("tabRec").hidden && $("tabStock").hidden);
-  const items=[["grp","Sertifika"],["new","Yeni Sertifika"],["rec","Sertifika Kayıtları",nRec]];
-  const nav=$("nav"); nav.innerHTML="";
-  items.forEach(([id,label,n])=>{
-    if(id==="grp"){ const g=document.createElement("div"); g.className="grp"; g.textContent=label; nav.appendChild(g); return; }
-    const b=document.createElement("button"); b.type="button"; b.className="nav"+(curView===id?" on":"");
-    b.textContent=label;
-    if(n){ const em=document.createElement("em"); em.textContent=n; b.appendChild(em); }
-    b.onclick=()=>$(id==="new"?"tabNew":"tabRec").onclick();
-    nav.appendChild(b);
-  });
+
+// ---------- ortak menü (bütün sayfalarda aynı) ----------
+const MENU=[{g:"Sertifika"},{id:"new",t:"Yeni Sertifika",href:"index.html#new"},{id:"rec",t:"Sertifika Kayıtları",href:"index.html#rec"},
+  {g:"Kalite"},{id:"test",t:"Test Kontrol Formu",href:"test.html",warn:1}];
+const PAGES=[{t:"Sertifika",href:"index.html",ids:["new","rec"]},{t:"Test Formu",href:"test.html",ids:["test"]}];
+function drawNav(active,badges,local){
+  badges=badges||{}; local=local||{};
+  const nav=document.getElementById("nav");
+  if(nav){ nav.innerHTML="";
+    MENU.forEach(m=>{
+      if(m.g){ const g=document.createElement("div"); g.className="grp"; g.textContent=m.g; nav.appendChild(g); return; }
+      const b=document.createElement(local[m.id]?"button":"a"); b.className="nav"+(m.id===active?" on":"");
+      if(local[m.id]){ b.type="button"; b.onclick=local[m.id]; } else b.href=m.href;
+      b.textContent=m.t;
+      const n=badges[m.id]; if(n){ const em=document.createElement("em"); em.textContent=n; if(m.warn) em.className="w"; b.appendChild(em); }
+      nav.appendChild(b); });
+  }
+  const pn=document.getElementById("pnav");
+  if(pn){ pn.innerHTML="";
+    PAGES.forEach(p=>{ const a=document.createElement("a"); a.href=p.href; a.textContent=p.t; if(p.ids.includes(active)) a.className="on";
+      const n=p.ids.reduce((s,i)=>s+((MENU.find(m=>m.id===i)||{}).warn?(badges[i]||0):0),0);
+      if(n){ const em=document.createElement("em"); em.textContent=n; a.appendChild(em); }
+      pn.appendChild(a); }); }
 }
+let sayac=store.get("cert_sayac",{});
+function renderNav(){
+  $("tabRec").firstChild.textContent="Kayıtlar "; $("tabRec").hidden=false;
+  $("tabsBox").hidden=curView==="login";
+  drawNav(curView,{rec:sortedRecs().length,test:sayac.test||0},{new:()=>$("tabNew").onclick(),rec:()=>$("tabRec").onclick()});
+}
+function setSayac(x){ if(x&&typeof x==="object"){ sayac=x; store.set("cert_sayac",sayac); renderNav(); } }
 $("sLogo").src=$("logo").src;
 // Bilgisayarda form iki sütun: solda 1-2-4, sağda 3-5 (telefonda sıra 1-2-3-4-5 kalır)
 (function(){ const L=$("colL"), R=document.createElement("div"); R.className="col"; R.id="colR"; L.after(R);
@@ -1834,7 +1858,7 @@ $("loginForm").addEventListener("submit",async ev=>{
     const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"login",pin})});
     const j=await res.json();
     if(j.ok){
-      auth={pin,name:j.user,role:j.role||"personel"}; store.set("cert_auth",auth);
+      auth={pin,name:j.user,role:j.role||"personel"}; store.set("cert_auth",auth); setSayac(j.sayac);
       records=j.records||[]; store.set("cert_records",records); setTypes(j.types);
       msg("loginMsg"); showUser(); conn("on","Bağlı"); resetForm(false); showView("new");
       msg("topMsg","ok",`Hoş geldin ${j.user}. Bu telefon artık seni hatırlayacak.`);
@@ -2234,7 +2258,7 @@ $("btnReport").onclick=async()=>{
 // ---------- boot ----------
 $("mfgDate").value=todayISO(); recompute(); renderRecs(); showUser();
 if(!API_OK) msg("loginMsg","err","E-Tablo bağlantı adresi henüz girilmemiş.");
-if(auth){ showView("new"); if(stockData) $("tabStock").hidden=false; renderStock(); flushQueue().then(refresh).then(loadStock); }
+if(auth){ showView(location.hash==="#rec"?"rec":"new"); if(location.hash==="#rec") renderRecs(); if(stockData) $("tabStock").hidden=false; renderStock(); flushQueue().then(refresh).then(loadStock); }
 else { showView("login"); conn("", ""); }
 </script>
 </body>
