@@ -208,6 +208,15 @@ select{font-family:var(--sans)!important}
 .det .grid div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line);padding:3px 0}
 .det .grid b{font:600 12px var(--mono)}
 .frow{cursor:pointer} .frow:hover td{background:var(--field)}
+.fpick{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden;margin-top:6px;box-shadow:0 6px 18px rgba(11,37,69,.08)}
+.fpick .fh{font:600 11px var(--sans);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:9px 14px 4px}
+.fpick button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:11px 14px;cursor:pointer;color:var(--fg)}
+.fpick button:last-child{border-bottom:0}
+.fpick button:hover{background:var(--field)}
+.fpick button b{display:block;font:600 15px var(--sans);color:var(--ink)}
+.fpick button small{font-size:12px;color:var(--muted)}
+.fpick button.new b{color:var(--accent)}
+.btn.navy{background:var(--ink);color:var(--surface)}
 .confirm{display:inline-flex;gap:6px;align-items:center;font-size:12.5px}
 .confirm button{border:1px solid var(--err);background:var(--err);color:#fff;font:600 12px var(--sans);padding:5px 9px;border-radius:7px;cursor:pointer}
 .confirm button.no{background:none;color:var(--fg);border-color:var(--line)}
@@ -262,7 +271,7 @@ select{font-family:var(--sans)!important}
     <div id="topMsg"></div>
     <div class="msg info" id="editBar" hidden style="display:flex;justify-content:space-between;gap:10px;align-items:center"><span id="editTxt"></span><button class="lnk" type="button" id="btnEditCancel">Düzenlemeyi bırak</button></div>
     <section class="card"><h2>1 · Müşteri ve Belge</h2><div class="body">
-      <div class="f" id="fFirma"><label for="firma">Firma</label><input id="firma" class="txt" list="firmList" autocomplete="off" placeholder="Firma adı yazın ya da listeden seçin"><datalist id="firmList"></datalist>
+      <div class="f" id="fFirma"><label for="firma">Firma</label><input id="firma" class="txt" autocomplete="off" placeholder="Firma adı yazın ya da aşağıdan seçin"><div class="fpick" id="firmPick" hidden></div>
         <small id="firmaNew" style="font-size:12px;color:var(--accent)" hidden>Yeni firma: kaydedince firma listesine eklenir.</small></div>
       <div class="grid2">
         <div class="f" id="fTarih"><label for="tarih">Teslim Tarihi</label><input id="tarih" type="date"></div>
@@ -293,7 +302,7 @@ select{font-family:var(--sans)!important}
         <div class="f"><label for="mLot">Lot No</label><input id="mLot" list="mLotList" autocapitalize="characters" autocomplete="off"><datalist id="mLotList"></datalist></div>
         <div class="f"><label for="mSkt">SKT</label><input id="mSkt" placeholder="AA/YYYY" inputmode="decimal"></div>
       </div>
-      <button class="btn ghost" type="button" id="btnMal">+ Satışa ekle</button>
+      <button class="btn navy" type="button" id="btnMal">+ Satışa ekle</button>
     </div>
       <div class="tblwrap"><table class="tbl" id="malTbl"><thead><tr><th>Malzeme</th><th class="n">Adet</th><th>Lot No</th><th>SKT</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
@@ -494,11 +503,33 @@ function salDurum(c){
 $("eskiModel").innerHTML=MODELS.map(m=>`<option>${m}</option>`).join("");
 $("mK").innerHTML='<option value="">— seçin —</option>'+KALEM.map(([k,a])=>`<option value="${k}">${a}</option>`).join("");
 function renderNew(){
-  $("firmList").innerHTML=D.firms.map(f=>`<option value="${esc(f.ad)}">`).join("");
   if(!$("tarih").value) $("tarih").value=todayISO();
   renderPick(); renderCart();
 }
-$("firma").addEventListener("input",()=>{ const v=$("firma").value.trim(); $("firmaNew").hidden=!v||D.firms.some(f=>norm(f.ad)===norm(v)); $("fFirma").classList.remove("miss"); });
+$("firma").addEventListener("input",()=>{ const v=$("firma").value.trim(); $("firmaNew").hidden=!v||D.firms.some(f=>norm(f.ad)===norm(v)); $("fFirma").classList.remove("miss"); renderFirmPick(); });
+$("firma").addEventListener("focus",renderFirmPick);
+$("firma").addEventListener("blur",()=>setTimeout(()=>{ $("firmPick").hidden=true; },180));
+// Firma önerileri: boşken son satış yapılan 5 firma, yazınca eşleşenler
+function renderFirmPick(){
+  const v=$("firma").value.trim(), q=norm(v), box=$("firmPick");
+  const names=[...new Set(D.firms.map(f=>f.ad).concat(D.sales.map(s=>s.firma)))];
+  const last=ad=>D.sales.filter(s=>s.firma===ad).map(s=>dk(s.tarih)+s.createdAt).sort().pop()||"";
+  let list = q ? names.filter(n=>norm(n).includes(q)).sort((a,b)=>(norm(a).startsWith(q)?0:1)-(norm(b).startsWith(q)?0:1)||last(b).localeCompare(last(a))).slice(0,8)
+               : names.sort((a,b)=>last(b).localeCompare(last(a))).slice(0,5);
+  if(list.length===1 && norm(list[0])===q){ box.hidden=true; return; }
+  box.innerHTML=""; if(!list.length&&!v){ box.hidden=true; return; }
+  if(!q&&list.length){ const h=document.createElement("div"); h.className="fh"; h.textContent="Son satış yapılan firmalar"; box.appendChild(h); }
+  list.forEach(n=>{ const st=firmStats(n), b=document.createElement("button"); b.type="button";
+    b.innerHTML=`<b></b><small></small>`; b.querySelector("b").textContent=n;
+    const py=st.py.rocket+st.py.smoke+st.py.flare;
+    b.querySelector("small").textContent= st.rows.length? [st.rafts.length?st.rafts.length+" can salı":"", py?py+" piroteknik":"", "son satış "+st.last].filter(Boolean).join(" · ") : "henüz satış yok";
+    b.onmousedown=e=>e.preventDefault(); b.onclick=()=>{ $("firma").value=n; $("firmaNew").hidden=true; box.hidden=true; $("fFirma").classList.remove("miss"); };
+    box.appendChild(b); });
+  if(v && !names.some(n=>norm(n)===q)){ const b=document.createElement("button"); b.type="button"; b.className="new";
+    b.innerHTML=`<b></b><small>listede yok, kaydedince eklenir</small>`; b.querySelector("b").textContent=`+ Yeni firma: ${v}`;
+    b.onmousedown=e=>e.preventDefault(); b.onclick=()=>{ box.hidden=true; }; box.appendChild(b); }
+  box.hidden=false;
+}
 $("salQ").addEventListener("input",renderPick);
 function renderPick(){
   const q=norm($("salQ").value.trim()), box=$("salPick"); box.innerHTML=""; $("eskiBox").hidden=true;
