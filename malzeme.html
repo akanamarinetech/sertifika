@@ -328,6 +328,7 @@ body.lgOpen{overflow:hidden}
   <div id="viewNew" hidden>
     <div id="topMsg"></div>
     <section class="card"><h2>1 · Malzeme <small id="editNote"></small></h2><div class="body"><div class="kchips" id="kchips"></div>
+      <div id="ownNote" class="msg info" hidden style="margin:0"><b>Kendi üretim — Malzeme Girişi gerekmez.</b> <span id="ownTxt"></span></div>
       <div class="f" id="fAd" hidden><label for="digerAd">Malzeme adı</label><input id="digerAd" class="txt" list="adList" autocomplete="off" placeholder="Örn. Can yeleği, Emniyet valfi"><datalist id="adList"></datalist></div></div></section>
     <section class="card"><h2>2 · Lot Bilgisi</h2><div class="body">
       <div class="f" id="fLot"><label for="lot">Lot No</label><input id="lot" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Ambalajdaki lot / parti no"></div>
@@ -485,6 +486,8 @@ function buildChips(){
 }
 function renderChips(){ [...$("kchips").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===sel)); $("kchips").classList.remove("miss");
   $("fAd").hidden=sel!=="__new";
+  const OWNTXT={food:"Lot ve SKT sertifikada birbirinden hesaplanır (Lot 097 = SKT 11/2031, her ay +1).",aid:"Lot ve SKT sertifikada birbirinden hesaplanır (Lot 057 = SKT 11/2029, her ay +1).",water:"Sertifikada kutudaki SN numarasını yazmanız yeterli, SKT kendiliğinden gelir (SN313 = 9 Kasım → SKT 11/2031)."};
+  $("ownNote").hidden=!OWNTXT[sel]; $("ownTxt").textContent=OWNTXT[sel]||"";
   $("fSkt").querySelector("label").textContent= (sel==="rubber"||(sel&&!isStd(sel))) ? "SKT (varsa)" : "SKT"; }
 $("digerAd").addEventListener("change",()=>{ const v=$("digerAd").value.trim(); const ex=otherKinds().find(([,ad])=>norm(ad)===norm(v)); if(ex){ sel=ex[0]; renderChips(); fillTed(true); } });
 let tedAuto=false;
