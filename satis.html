@@ -773,6 +773,8 @@ function openFirm(ad){
     tr.children[0].textContent=r.tarih; tr.children[1].textContent=r.gecmis?"Geçmiş kayıt":(r.irs||"–"); if(r.gecmis){ tr.children[1].style.color="var(--muted)"; tr.children[0].title="Üretim tarihi (Word bilgi formundan)"; } tr.querySelector(".chip").textContent=raft?"Can salı":r.ad;
     tr.children[3].textContent= raft? `${r.serial} · ANA-${r.model} ${r.pack==="-"?"(paket yok)":(r.pack||"")}${r.not?" · "+r.not:""}` : `${r.adet} adet${r.lot?" · "+r.lot:""}`;
     const act=tr.children[4];
+    if(raft&&certOf(r.serial)){ const kl=document.createElement("a"); kl.className="lnk"; kl.textContent="Kart ↗"; kl.style.marginRight="10px"; kl.target="_blank"; kl.rel="noopener";
+      kl.href="kart.html?s="+encodeURIComponent(r.serial); kl.onclick=e=>e.stopPropagation(); act.appendChild(kl); }
     if(raft){ const b=document.createElement("button"); b.type="button"; b.className="lnk"; b.textContent=openDet===r.serial?"Gizle ▴":"İçeriği gör ▾"; b.onclick=e=>{ e.stopPropagation(); openDet=openDet===r.serial?"":r.serial; openFirm(ad); }; act.appendChild(b); }
     if(!r.gecmis&&r.sid!==lastSid){ lastSid=r.sid; const sp=document.createElement("span"); sp.style.marginLeft="10px";
       if(confirmSid===r.sid){ sp.className="confirm"; sp.innerHTML=`Bu satışın tamamı silinsin mi? <button type="button">Evet, sil</button><button type="button" class="no">Vazgeç</button>`;

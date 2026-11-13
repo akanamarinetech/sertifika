@@ -2054,11 +2054,11 @@ function docData(r){
   d.inspector = INSPECTOR;
   return d;
 }
-function qrText(d,kind){
-  return kind==="log"
-    ? ["AKANA MARINE TECHNOLOGY","INFLATABLE LIFERAFT LOG CARD",`Type: ANA-${d.model}`,`Serial No: ${d.serial}`,`Capacity: ${d.capacity} persons`,`Date of Manufacture: ${d.mfg}`,"www.akanamarinetech.com"].join("\n")
-    : ["AKANA MARINE TECHNOLOGY","CERTIFICATE OF INVENTORY",`Liferaft Type: ANA-${d.model}`,`Serial No: ${d.serial}`,`Capacity: ${d.capacity} persons`,`Date: ${d.mfg}`,"Test Result: PASSED","www.akanamarinetech.com"].join("\n");
-}
+// Adım 4b: QR artık Can Salı Kartı'nı açan adres (sertifika ve log card aynı karta gider)
+const KART_BASE="https://akanamarinetech.github.io/sertifika/kart.html";
+const kartUrl=serial=>KART_BASE+"?s="+encodeURIComponent(String(serial||"").trim());
+function qrText(d,kind){ return kartUrl(d.serial); }
+
 // QR kodu PNG olarak üretir (lacivert, beyaz zemin)
 async function qrPng(text){
   const q=new QRCodeLib.QRCode(-1,QRCodeLib.ECL.M);
@@ -2251,9 +2251,10 @@ function renderRecs(){
     const bL=document.createElement("button"); bL.textContent="Log Card"; bL.onclick=()=>downloadDoc(r,"log").catch(e=>msg("recMsg","err","Log Card oluşturulamadı: "+(e.message||e)));
     const bS=document.createElement("button"); bS.textContent="Paylaş"; bS.onclick=()=>shareDoc(r,"recMsg");
     const bE=document.createElement("button"); bE.textContent="Düzenle"; bE.onclick=()=>loadForEdit(r);
+    const bK=document.createElement("button"); bK.textContent="Kart"; bK.title="Can Salı Kartı (QR'ın açtığı sayfa)"; bK.onclick=()=>window.open(kartUrl(r.serial),"_blank","noopener");
     if(isCancel(r)){ /* iptal edilmiş: işlem yok */ }
     else if(isDraft(r)){ bE.textContent="Devam et"; acts.append(bE); }
-    else { acts.append(bW,bL); if(navigator.share) acts.append(bS); acts.append(bE); }
+    else { acts.append(bK,bW,bL); if(navigator.share) acts.append(bS); acts.append(bE); }
     row.append(left,acts); box.appendChild(row);
   });
 }

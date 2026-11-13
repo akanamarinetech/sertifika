@@ -584,7 +584,7 @@ function renderList(){
         return norm([r.serial,c.model,...ITEMS.map(i=>r["lot_"+i.k]),c.c1sn,c.c2sn].join(" ")).includes(q); })
       .map(r=>{ const c=certOf(r.serial)||{}; const hit=q?ITEMS.find(i=>norm(r["lot_"+i.k]).includes(q)):null;
         return `<div class="item"><div><b>${esc(r.serial)}</b><div class="meta">${c.model?`<span class="pill ok">${esc(c.model)}</span>`:""}${esc(r.by||"")} · ${esc(isoToTR(String(r.createdAt||"").slice(0,10)))}</div>${hit?`<div class="hit">${esc(hit.tr)}: <b>${esc(r["lot_"+hit.k])}</b></div>`:""}</div>
-          <button data-s="${esc(r.serial)}">Aç</button></div>`; });
+          <span style="display:flex;gap:6px"><a class="go" style="text-decoration:none;background:transparent;color:var(--ink);border:1px solid var(--line)" href="kart.html?s=${encodeURIComponent(r.serial)}" target="_blank" rel="noopener">Kart</a><button data-s="${esc(r.serial)}">Aç</button></span></div>`; });
     $("list").innerHTML=rows.join("")||`<div class="empty">${q?"Bu lot ya da seri numarası hiçbir kayıtta yok.":"Henüz kayıt yok."}</div>`;
   }
   $("list").querySelectorAll("button[data-s]").forEach(b=>b.onclick=()=>openForm(b.dataset.s));
