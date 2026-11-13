@@ -1812,6 +1812,9 @@ function ownNorm(k,lot){ lot=String(lot||"").trim().toUpperCase(); if(!lot||lot=
   if(k==="water"){ const m=/^(?:SN)?\s*(\d{1,3})$/.exec(lot); return m? "SN"+m[1] : lot; }
   return lot; }
 
+// TPA: lot = üretim yılı+ayı (YYAA), SKT = üretim + 5 yıl. 2609 <-> 09/2031
+function tpaSkt(lot){ const m=/^(\d{2})(0[1-9]|1[0-2])$/.exec(String(lot||"").trim()); return m? m[2]+"/"+(2000+(+m[1])+5) : null; }
+function tpaLot(skt){ const m=/^(0[1-9]|1[0-2])\/(\d{4})$/.exec(String(skt||"").trim()); if(!m) return null; const y=+m[2]-5-2000; return y>=0&&y<100? String(y).padStart(2,"0")+m[1] : null; }
 const lotZorunlu=()=>String(($("serial")||{}).value||"")>=String(ilkSeri||"20260753");
 function lotStatus(k,v){ v=String(v||"").trim(); if(v==="-") return null; if(!v) return lotZorunlu()? ["bad","LOT YOK"] : null;
   if(isOwn(k)){ const os=ownSktFromLot(k,v,$("mfgDate").value||todayISO()); if(!os) return ["warn", k==="water"?"SN NO?":"LOT NO?"];
@@ -1877,6 +1880,7 @@ function autoValues(){
     const cur=manual.has("lot_"+e.k)? (document.getElementById("lot_"+e.k)||{}).value : dl, lr=lotRec(e.k,cur);
     if(isOwn(e.k)){ const os=ownSktFromLot(e.k,cur,$("mfgDate").value||todayISO()); if(os){ v["e_"+e.k]=os; return; } }   // kendi üretim: SKT lottan hesaplanır
     if(lr&&/^(0[1-9]|1[0-2])\/\d{4}$/.test(String(lr.skt||""))){ v["e_"+e.k]=lr.skt; return; }
+    if(e.k==="tpa"){ const ts=tpaSkt(cur); if(ts){ v["e_"+e.k]=ts; return; } }   // TPA: SKT lottan (2609 -> 09/2031)
     const src=bySaved.find(r=>/^(0[1-9]|1[0-2])\/\d{4}$/.test(String(r["e_"+e.k]||"")));
     v["e_"+e.k]=src? src["e_"+e.k] : (la?(la["e_"+e.k]||""):""); });
   // Tüp (chamber) seri no: taslaklar ve gönderilmeyi bekleyenler dahil BÜTÜN kayıtlardaki en yüksek sıra numarasından devam eder
@@ -1914,9 +1918,9 @@ function recompute(){
 }
 FIELDS.forEach(k=>$(k).addEventListener("input",()=>{ manual.add(k);
   // Kendi üretim: lot değişince SKT lottan gelir; gıda/ilk yardımda SKT değişince lot SKT'den gelir
-  const m=/^(lot|e)_(food|aid|water)$/.exec(k);
+  const m=/^(lot|e)_(food|aid|water|tpa)$/.exec(k);
   if(m&&m[1]==="lot") manual.delete("e_"+m[2]);
-  if(m&&m[1]==="e"&&m[2]!=="water"){ const L=ownLotFromSkt(m[2],$(k).value); if(L){ $("lot_"+m[2]).value=L; manual.add("lot_"+m[2]); } }
+  if(m&&m[1]==="e"&&m[2]!=="water"){ const L=m[2]==="tpa"? tpaLot($(k).value) : ownLotFromSkt(m[2],$(k).value); if(L){ $("lot_"+m[2]).value=L; manual.add("lot_"+m[2]); } }
   recompute(); }));
 fillLotLists();
 $("mfgDate").addEventListener("change",recompute);
