@@ -127,7 +127,7 @@ function render(k,ic){
       <div class="lab">INFLATABLE LIFERAFT · ŞİŞME CAN SALI</div>
       <h1>ANA-${esc(k.model)}</h1>
       <div class="sn"><span class="lab" style="font-size:11px;margin-right:6px">S/N</span>${esc(k.serial)}</div>
-      <div class="row"><span class="chip pass">${ICON_OK} Test result: PASSED · Test: Başarılı</span></div>
+      <div class="row"><span class="chip pass">${ICON_OK} Test result: PASSED · Test: Başarılı</span>${k.arsiv?`<span class="chip">Archive record · Arşiv kaydı</span>`:""}</div>
     </section>
     <div class="facts">
       <div><span>Date of manufacture<br>Üretim tarihi</span><b>${esc(k.mfg||"–")}</b></div>
@@ -135,12 +135,15 @@ function render(k,ic){
       <div><span>Emergency pack<br>Paket</span><b>SOLAS ${esc(k.pack||"–")}</b></div>
     </div>
     <section class="card"><h2>EQUIPMENT · EKİPMAN <small>Expiry · SKT (MM/YYYY)</small></h2>
-      <table><thead><tr><th>ITEM · KALEM</th><th class="q">QTY</th><th class="e">EXPIRY · SKT</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+      <table><thead><tr><th>ITEM · KALEM</th><th class="q">QTY</th><th class="e">EXPIRY · SKT</th></tr></thead><tbody>${rows}</tbody></table><p style="margin:0;padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)">Expiry dates as supplied by the manufacturer; items may have been renewed at annual servicing.<br>SKT'ler üretimdeki değerlerdir; yıllık serviste yenilenmiş olabilir.</p></section>`;
   if(ic) h+=renderIc(k,ic);
   $("main").innerHTML=h; document.title=`ANA-${k.model} · ${k.serial} · Can Salı Kartı`;
 }
 // Sadece sisteme giriş yapmış cihazlarda görünür
 function renderIc(k,ic){
+  if(ic.arsiv){ const sat= ic.satis===undefined? "" : `<dt>Satış</dt><dd>${ic.satis? `${esc(ic.satis.firma)} · ${esc(ic.satis.tarih)}${ic.satis.irs?` · ${esc(ic.satis.irs)}`:""}${ic.satis.gecmis?" (geçmiş kayıt)":""}` : `<span class="ok">Stokta</span>`}</dd>`;
+    return `<section class="card ic"><h2>İÇ KAYIT <small>sadece sisteme giriş yapmış cihazlarda görünür</small></h2>
+      <dl class="kv"><dt>Kaynak</dt><dd>Word bilgi formu (sistem öncesi)</dd><dt>Lot / test kaydı</dt><dd style="color:var(--muted)">Sistem öncesi, kayıt yok</dd>${sat}</dl></section>`; }
   const lots=ic.lots.filter(l=>ITEMS[l.k]).map(l=>`<tr><td>${esc(ITEMS[l.k][1])}</td><td>${esc(l.lot||"–")}</td></tr>`).join("");
   const sk=ic.sk? `<span class="${/^uygun$/i.test(ic.sk.sonuc)?"ok":"bad"}">${esc(ic.sk.sonuc)}</span> · ${esc(ic.sk.tarih)}${ic.sk.onayBy?` · onay: ${esc(ic.sk.onayBy)}`:" · onay bekliyor"}` : `<span class="bad">Yapılmadı</span>`;
   const sat= ic.satis===undefined? "" : `<dt>Satış</dt><dd>${ic.satis? `${esc(ic.satis.firma)} · ${esc(ic.satis.tarih)}${ic.satis.irs?` · ${esc(ic.satis.irs)}`:""}${ic.satis.gecmis?" (geçmiş kayıt)":""}` : `<span class="ok">Stokta</span>`}</dd>`;
