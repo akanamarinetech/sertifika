@@ -174,7 +174,7 @@ select{font-family:var(--sans)!important}
 .tbl .mono{font:600 13.5px var(--mono);color:var(--ink)}
 .tblwrap{overflow-x:auto}
 .chip{display:inline-block;font:600 11px var(--sans);padding:3px 8px;border-radius:6px;background:var(--auto-soft);color:var(--auto);white-space:nowrap}
-.chip.o{background:var(--accent-soft);color:var(--accent)} .chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.bad{background:var(--err-soft);color:var(--err)} .chip.g{background:var(--field);color:var(--muted)}
+.chip.o{background:var(--accent-soft);color:var(--accent)} .chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.bad{background:var(--err-soft);color:var(--err)} .chip.warn{background:#FFF4CC;color:#8A5A00} .chip.g{background:var(--field);color:var(--muted)}
 .lnk{border:0;background:none;color:var(--accent);font:600 13px var(--sans);cursor:pointer;padding:0;text-decoration:underline}
 .lnk.red{color:var(--err)}
 .addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
@@ -365,7 +365,7 @@ body.lgOpen{overflow:hidden}
     <section class="card"><h2>2 · Can Salları <small>seri no ile ekleyin, içerik sertifikadan gelir</small></h2><div class="body">
       <div class="addrow"><div class="f"><label for="salQ">Seri no ya da tip ara</label><input id="salQ" inputmode="search" autocomplete="off" placeholder="Örn. 20260753 ya da T6"></div></div>
       <div class="picker" id="salPick"></div>
-      <div class="note" style="padding:0" id="pickNote">"Eski üretim": kalite formları başlamadan önce üretilen sallar, formsuz satılabilir. Daha önce teslim edilmiş bir salı tekrar eklemeyin.</div>
+      <div class="note" style="padding:0" id="pickNote">"Eski üretim": kalite formları başlamadan önce üretilen sallar, formsuz satılabilir. Sarı "Eksik" olanlar onayınızla satılabilir; satışa uyarı yazılır. Daha önce teslim edilmiş bir salı tekrar eklemeyin.</div>
       <div id="eskiBox" hidden class="body" style="padding:0;gap:8px">
         <div class="note" style="padding:0">Bu seri no sistemde yok. Sistemden önce üretilmiş bir salsa <b>geçmiş kayıt</b> olarak eklenebilir:</div>
         <div class="grid2"><div class="f"><label for="eskiModel">Tip</label><select id="eskiModel"></select></div>
@@ -571,6 +571,9 @@ function pyroOfRaft(serial,model,pack){ const c=certOf(serial); const o={};
 // Word formlarından aktarılan geçmiş can salları, satış satırı biçiminde (analiz toplamlarına girmez)
 const eskiRows=()=>(D.eski||[]).map(e=>({sid:"",gecmis:1,tur:"Can salı",serial:String(e.serial),model:e.model,pack:e.pack,tarih:e.tarih,firma:e.firma,irs:"",not:e.not||"",createdAt:""}));
 const soldMap=()=>{ const m={}; eskiRows().forEach(s=>m[s.serial]=s); D.sales.filter(s=>s.tur==="Can salı"&&(!editSid||s.sid!==editSid)).forEach(s=>m[String(s.serial)]=s); return m; };
+// Test + izlenebilirlik + onaylı uygun son kontrol tamam mı (eksik formla satılanlar için)
+function formTamam(s){ s=String(s); const sk=D.sks.find(t=>String(t.serial)===s);
+  return D.tests.some(t=>String(t.serial)===s) && D.izl.some(t=>String(t.serial)===s) && !!sk && sk.sonuc==="Uygun" && !!sk.onayBy; }
 function salDurum(c){
   const s=String(c.serial), sold=soldMap()[s];
   if(sold) return {ok:false,t:`Satıldı · ${sold.firma}${sold.gecmis?" (geçmiş)":""}`};
@@ -581,7 +584,9 @@ function salDurum(c){
   if(!D.izl.some(t=>String(t.serial)===s)) miss.push("lot");
   const sk=D.sks.find(t=>String(t.serial)===s);
   if(!sk) miss.push("son kontrol"); else if(sk.sonuc!=="Uygun") miss.push("son kontrol UYGUN DEĞİL"); else if(!sk.onayBy) miss.push("onay");
-  return miss.length? {ok:false,t:"Eksik: "+miss.join(", ")} : {ok:true,t:"Hazır"};
+  if(!miss.length) return {ok:true,t:"Hazır"};
+  const zorla=!miss.some(m=>/UYGUN DEĞİL/.test(m));   // son kontrol uygun değilse asla
+  return {ok:false,t:"Eksik: "+miss.join(", "),zorla,eksik:miss.join(", ")};
 }
 
 // ---------- YENİ SATIŞ ----------
@@ -620,12 +625,14 @@ function renderPick(){
   const q=norm($("salQ").value.trim()), box=$("salPick"); box.innerHTML=""; $("eskiBox").hidden=true;
   const inCart=new Set(cart.map(c=>String(c.serial)));
   let list=D.records.filter(c=>!inCart.has(String(c.serial))&&c.status!=="İptal");
-  if(q) list=list.filter(c=>norm(c.serial+" "+c.model).includes(q)); else list=list.filter(c=>salDurum(c).ok);
+  if(q) list=list.filter(c=>norm(c.serial+" "+c.model).includes(q)); else list=list.filter(c=>{ const d=salDurum(c); return d.ok||d.zorla; });
   list.sort((a,b)=>String(b.serial).localeCompare(String(a.serial)));
   list.slice(0,30).forEach(c=>{ const st=salDurum(c), b=document.createElement("button"); b.type="button";
-    b.innerHTML=`<span><b></b> <span class="m"></span></span><span class="chip ${st.ok?(st.old?"g":"ok"):"bad"}"></span>`;
+    b.innerHTML=`<span><b></b> <span class="m"></span></span><span class="chip ${st.ok?(st.old?"g":"ok"):st.zorla?"warn":"bad"}"></span>`;
     b.querySelector("b").textContent=c.serial; b.querySelector(".m").textContent=` ANA-${c.model} · ${c.pack||"A"}`; b.querySelector(".chip").textContent=st.t;
     if(st.ok) b.onclick=()=>{ cart.push({serial:String(c.serial),model:c.model,pack:c.pack||"A",old:!!st.old}); $("salQ").value=""; renderPick(); renderCart(); };
+    else if(st.zorla) b.onclick=()=>{ if(!confirm(`${c.serial} için kalite kaydı eksik: ${st.eksik}.\n\nYine de satışa eklensin mi? Satış kaydına "Eksik formla satıldı" uyarısı yazılır; eksik formları sonra tamamlayabilirsiniz.`)) return;
+      cart.push({serial:String(c.serial),model:c.model,pack:c.pack||"A",zorla:1,eksik:st.eksik}); $("salQ").value=""; renderPick(); renderCart(); };
     else b.disabled=true;
     box.appendChild(b); });
   if(!list.length){
@@ -648,7 +655,7 @@ function renderCart(){
     tr.innerHTML=`<td class="mono"></td><td></td><td class="mono" style="font-size:12.5px"></td><td style="font-size:12.5px"></td><td></td><td><button class="lnk red" type="button">Çıkar</button></td>`;
     tr.children[0].textContent=r.serial; tr.children[1].textContent=`ANA-${r.model} · ${r.pack}`; tr.children[2].textContent=[c.c1sn,c.c2sn].filter(Boolean).join(" / ")||"–";
     tr.children[3].textContent=contentText(r);
-    tr.children[4].innerHTML= r.nocert? `<span class="chip g">Geçmiş kayıt</span>` : r.old? `<span class="chip ok">Sertifika ✓</span> <span class="chip g">Eski üretim · kalite formu aranmaz</span>` : `<span class="chip ok">Sertifika ✓</span> <span class="chip ok">Test ✓</span> <span class="chip ok">Lot ✓</span> <span class="chip ok">Son kontrol ✓</span>`;
+    tr.children[4].innerHTML= r.zorla? `<span class="chip ok">Sertifika ✓</span> <span class="chip warn">Eksik: ${esc(r.eksik)}</span>` : r.nocert? `<span class="chip g">Geçmiş kayıt</span>` : r.old? `<span class="chip ok">Sertifika ✓</span> <span class="chip g">Eski üretim · kalite formu aranmaz</span>` : `<span class="chip ok">Sertifika ✓</span> <span class="chip ok">Test ✓</span> <span class="chip ok">Lot ✓</span> <span class="chip ok">Son kontrol ✓</span>`;
     tr.querySelector("button").onclick=()=>{ cart.splice(i,1); renderPick(); renderCart(); };
     tb.appendChild(tr); });
   const tm=$("malTbl").tBodies[0]; tm.innerHTML="";
@@ -697,7 +704,7 @@ $("btnSave").onclick=async()=>{
   const e=[]; if(!h.firma){ e.push("Firma"); $("fFirma").classList.add("miss"); } if(!h.tarih){ e.push("Teslim tarihi"); $("fTarih").classList.add("miss"); }
   if(!cart.length&&!mal.length) e.push("En az bir can salı ya da malzeme");
   if(e.length){ msg("topMsg","err","Eksik: "+e.join(", ")); window.scrollTo({top:0,behavior:"smooth"}); return; }
-  const lines=cart.map(r=>({tur:"Can salı",serial:r.serial,model:r.model,pack:r.pack})).concat(mal.map(m=>({tur:"Malzeme",k:m.k,ad:m.ad,adet:m.adet,lot:m.lot,skt:m.skt})));
+  const lines=cart.map(r=>({tur:"Can salı",serial:r.serial,model:r.model,pack:r.pack,zorla:r.zorla?1:0})).concat(mal.map(m=>({tur:"Malzeme",k:m.k,ad:m.ad,adet:m.adet,lot:m.lot,skt:m.skt})));
   const b=$("btnSave"); b.disabled=true; const lbl=b.textContent; b.textContent="Kaydediliyor…";
   try{
     const wasEdit=!!editSid;
@@ -771,7 +778,7 @@ function openFirm(ad){
     const tr=document.createElement("tr"); const raft=r.tur==="Can salı";
     tr.innerHTML=`<td></td><td class="mono" style="font-size:12.5px"></td><td><span class="chip ${raft?"":"o"}"></span></td><td class="mono" style="font-size:12.5px"></td><td style="white-space:nowrap"></td>`;
     tr.children[0].textContent=r.tarih; tr.children[1].textContent=r.gecmis?"Geçmiş kayıt":(r.irs||"–"); if(r.gecmis){ tr.children[1].style.color="var(--muted)"; tr.children[0].title="Üretim tarihi (Word bilgi formundan)"; } tr.querySelector(".chip").textContent=raft?"Can salı":r.ad;
-    tr.children[3].textContent= raft? `${r.serial} · ANA-${r.model} ${r.pack==="-"?"(paket yok)":(r.pack||"")}${r.not?" · "+r.not:""}` : `${r.adet} adet${r.lot?" · "+r.lot:""}`;
+    tr.children[3].textContent= raft? `${r.serial} · ANA-${r.model} ${r.pack==="-"?"(paket yok)":(r.pack||"")}${r.not?" · "+r.not:""}${r.uyari?" · ⚠ "+r.uyari+(formTamam(r.serial)?" · ✓ formlar sonradan tamamlandı":""):""}` : `${r.adet} adet${r.lot?" · "+r.lot:""}`;
     const act=tr.children[4];
     if(raft&&certOf(r.serial)){ const kl=document.createElement("a"); kl.className="lnk"; kl.textContent="Kart ↗"; kl.style.marginRight="10px"; kl.target="_blank"; kl.rel="noopener";
       kl.href="kart.html?s="+encodeURIComponent(r.serial); kl.onclick=e=>e.stopPropagation(); act.appendChild(kl); }
@@ -799,7 +806,7 @@ function editSale(sid){
   const rows=D.sales.filter(s=>s.sid===sid); if(!rows.length) return;
   editSid=sid; const h=rows[0];
   cart=rows.filter(r=>r.tur==="Can salı").map(r=>{ const c=certOf(r.serial); const old=!c||(D.ilkSeri&&String(r.serial)<D.ilkSeri);
-    return {serial:String(r.serial),model:r.model,pack:r.pack||"A",old:!!old,nocert:!c}; });
+    const ek=/^Eksik formla satıldı \((.*)\)$/.exec(r.uyari||""); return {serial:String(r.serial),model:r.model,pack:r.pack||"A",old:!!old,nocert:!c,zorla:ek?1:0,eksik:ek?ek[1]:""}; });
   mal=rows.filter(r=>r.tur!=="Can salı").map(r=>({k:r.k,ad:r.ad,adet:r.adet,lot:r.lot,skt:r.skt}));
   go("new");
   $("firma").value=h.firma; $("irs").value=h.irs||""; const m=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec(h.tarih||""); $("tarih").value=m?`${m[3]}-${m[2]}-${m[1]}`:todayISO();

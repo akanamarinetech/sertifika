@@ -2113,7 +2113,7 @@ function docData(r){
 // Adım 4b: QR artık Can Salı Kartı'nı açan adres (sertifika ve log card aynı karta gider)
 const KART_BASE="https://akanamarinetech.github.io/sertifika/kart.html";
 const kartUrl=serial=>KART_BASE+"?s="+encodeURIComponent(String(serial||"").trim());
-function qrText(d,kind){ return kartUrl(d.serial); }
+function qrText(d,kind){ return kind==="log"? kartUrl(d.serial)+"&v=servis" : kartUrl(d.serial); }   // log card QR: servis kartı
 
 // QR kodu PNG olarak üretir (lacivert, beyaz zemin)
 async function qrPng(text){
@@ -2132,6 +2132,7 @@ async function docxZip(r,kind){
   const d=docData(r);
   let xml=await zip.file("word/document.xml").async("string");
   xml=xml.replace(/\{\{(\w+)\}\}/g,(_,k)=>esc(d[k]));
+  if(kind==="log") xml=xml.replace(/SCAN FOR LIFERAFT DETAILS/g,"SCAN FOR SERVICE RECORD");
   zip.file("word/document.xml",xml);
   zip.file("word/media/qr.png",await qrPng(qrText(d,kind)));
   return zip;
