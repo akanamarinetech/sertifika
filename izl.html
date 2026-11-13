@@ -463,11 +463,11 @@ function demoData(){
 
 
 // ---------- ortak menü (bütün sayfalarda aynı) ----------
-const MENU=[{g:"Sertifika"},{id:"new",t:"Yeni Sertifika",href:"index.html#new"},{id:"rec",t:"Sertifika Kayıtları",href:"index.html#rec"},
+const MENU=[{g:"Sertifika"},{id:"new",t:"Yeni Sertifika",href:"index.html#new"},{id:"rec",t:"Sertifika Kayıtları",href:"index.html#rec"},{id:"kart",t:"Can Salı Kartı · Sorgula",href:"kart.html"},
   {g:"Kalite"},{id:"test",t:"Test Kontrol Formu",href:"test.html",warn:1},{id:"izl",t:"İzlenebilirlik",href:"izl.html",warn:1},
   {id:"sk",t:"Son Kontrol",href:"sk.html",warn:1},{id:"mal",t:"Malzeme Girişi",href:"malzeme.html"},
   {g:"Satış",admin:1},{id:"sy",t:"Yeni Satış",href:"satis.html#yeni",admin:1},{id:"sf",t:"Firmalar",href:"satis.html#firmalar",admin:1},{id:"sa",t:"Satış Analizi",href:"satis.html#analiz",admin:1}];
-const PAGES=[{t:"Sertifika",href:"index.html",ids:["new","rec"]},{t:"Test",href:"test.html",ids:["test"]},{t:"Lot",href:"izl.html",ids:["izl"]},{t:"Son Kontrol",href:"sk.html",ids:["sk"]},{t:"Malzeme",href:"malzeme.html",ids:["mal"]},{t:"Satış",href:"satis.html",ids:["sy","sf","sa"],admin:1}];
+const PAGES=[{t:"Sertifika",href:"index.html",ids:["new","rec"]},{t:"Kart",href:"kart.html",ids:["kart"]},{t:"Test",href:"test.html",ids:["test"]},{t:"Lot",href:"izl.html",ids:["izl"]},{t:"Son Kontrol",href:"sk.html",ids:["sk"]},{t:"Malzeme",href:"malzeme.html",ids:["mal"]},{t:"Satış",href:"satis.html",ids:["sy","sf","sa"],admin:1}];
 function drawNav(active,badges,local){
   badges=badges||{}; local=local||{};
   const nav=document.getElementById("nav");
