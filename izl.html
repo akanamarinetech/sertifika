@@ -562,7 +562,7 @@ function defaultLot(k,except){ const cl=certLot(k); if(cl) return cl;   // Adım
   const p=prevLot(k,except); const pr=p&&lotRec(k,p);
   if(p && !(pr&&pr.kontrol==="Uygun Değil")) return p;
   const d=defter(k).find(l=>l.kontrol!=="Uygun Değil"); return d? d.lot : ""; }
-function lotTags(k,v){ if(!v||v==="-") return ""; const r=lotRec(k,v);
+function lotTags(k,v){ if(!v||v==="-") return ""; if((k==="food"||k==="aid"||k==="water")&&/^(?:SN|LOT)?\s*\d{1,4}$/i.test(String(v).trim())) return ""; const r=lotRec(k,v);
   if(!r) return `<span class="tag warn">GİRİŞİ YOK</span>`; if(r.kontrol==="Uygun Değil") return `<span class="tag bad">UYGUN DEĞİL</span>`; return ""; }
 
 function renderList(){

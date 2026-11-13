@@ -1784,8 +1784,39 @@ function setLots(j){ if(j&&Array.isArray(j.lots)){ lotDefter=j.lots; store.set("
   if(j&&j.ilkSeri){ ilkSeri=String(j.ilkSeri); store.set("cert_ilkseri",ilkSeri); } }
 function fillLotLists(){ EQ.forEach(e=>{ const dl=document.getElementById("dl_"+e.k); if(!dl) return;
   dl.innerHTML=defterOf(e.k).filter(l=>l.kontrol!=="Uygun Değil").slice(0,15).map(l=>`<option value="${String(l.lot).replace(/"/g,"&quot;")}" label="${l.skt?"SKT "+l.skt:""}${l.ted?" · "+String(l.ted).replace(/"/g,"&quot;"):""}">`).join(""); }); }
+// ---- Kendi üretim lotları (gıda, ilk yardım: aylık; su: günlük) ----
+// Gıda: SKT 11/2031 = Lot 097, her ay +1 (5 yıl). İlk yardım: SKT 11/2029 = Lot 057, her ay +1 (3 yıl).
+// Su: SN + üretim gününün yıl içindeki sırası (SN313 = 9 Kasım), SKT = üretim + 5 yıl.
+const OWN_LOT={food:{base:97,y:2031,m:11},aid:{base:57,y:2029,m:11}};
+const isOwn=k=>k==="food"||k==="aid"||k==="water";
+function ownSktFromLot(k,lot,refISO){
+  lot=String(lot||"").trim().toUpperCase();
+  if(OWN_LOT[k]){ const m=/^(?:LOT\s*)?0*(\d{1,4})$/.exec(lot); if(!m) return null; const R=OWN_LOT[k];
+    const idx=(R.y*12+R.m-1)+(+m[1]-R.base); if(idx<0) return null; const y=Math.floor(idx/12), mo=idx%12+1;
+    return String(mo).padStart(2,"0")+"/"+y; }
+  if(k==="water"){ const mm=/^(?:SN)?\s*0*(\d{1,3})$/.exec(lot); if(!mm) return null;
+    const doy=+mm[1]; if(doy<1||doy>366) return null;
+    const ref=refISO? new Date(refISO+"T12:00:00") : new Date(); let y=ref.getFullYear();
+    const start=yy=>new Date(yy,0,1,12); const dayOf=d=>Math.round((d-start(d.getFullYear()))/864e5)+1;
+    if(doy>dayOf(ref)) y--;                                  // son 12 ay içindeki o gün
+    const d=new Date(y,0,doy,12); if(d.getFullYear()!==y) return null;
+    return String(d.getMonth()+1).padStart(2,"0")+"/"+(y+5); }
+  return null;
+}
+function ownLotFromSkt(k,skt){
+  const m=/^(0[1-9]|1[0-2])\/(\d{4})$/.exec(String(skt||"").trim()); if(!m||!OWN_LOT[k]) return null; const R=OWN_LOT[k];
+  const n=R.base+((+m[2])*12+(+m[1]))-(R.y*12+R.m); return n>0? String(n).padStart(3,"0") : null;
+}
+function ownNorm(k,lot){ lot=String(lot||"").trim().toUpperCase(); if(!lot||lot==="-") return lot;
+  if(OWN_LOT[k]){ const m=/^(?:LOT\s*)?0*(\d{1,4})$/.exec(lot); return m? String(+m[1]).padStart(3,"0") : lot; }
+  if(k==="water"){ const m=/^(?:SN)?\s*(\d{1,3})$/.exec(lot); return m? "SN"+m[1] : lot; }
+  return lot; }
+
 const lotZorunlu=()=>String(($("serial")||{}).value||"")>=String(ilkSeri||"20260753");
-function lotStatus(k,v){ v=String(v||"").trim(); if(v==="-") return null; if(!v) return lotZorunlu()? ["bad","LOT YOK"] : null; const r=lotRec(k,v);
+function lotStatus(k,v){ v=String(v||"").trim(); if(v==="-") return null; if(!v) return lotZorunlu()? ["bad","LOT YOK"] : null;
+  if(isOwn(k)){ const os=ownSktFromLot(k,v,$("mfgDate").value||todayISO()); if(!os) return ["warn", k==="water"?"SN NO?":"LOT NO?"];
+    const ev=($("e_"+k)||{}).value||""; if(ev&&ev!==os) return ["warn", k==="water"?"SN YAZIN":"SKT UYMUYOR"]; return null; }
+  const r=lotRec(k,v);
   if(!r) return ["warn","GİRİŞİ YOK"]; if(r.kontrol==="Uygun Değil") return ["bad","UYGUN DEĞİL"]; return null; }
 function renderLotTags(){ EQ.forEach(e=>{ const el=document.getElementById("lot_"+e.k); if(!el) return; const box=el.closest(".f");
   box.querySelectorAll(".ltag").forEach(x=>x.remove()); const st=notInPack(e)?null:lotStatus(e.k,el.value);
@@ -1840,10 +1871,11 @@ function autoValues(){
     // Lot: en son kaydedilen sertifikadaki lot (uygun değilse defterdeki en yeni uygun lot)
     const ls=bySaved.find(r=>{ const x=String(r["lot_"+e.k]||"").trim(); return x&&x!=="-"; });
     let dl=ls? String(ls["lot_"+e.k]).trim().toLocaleUpperCase("tr-TR") : "";
-    const dr=dl&&lotRec(e.k,dl); if(!dl||(dr&&dr.kontrol==="Uygun Değil")){ const d=defterOf(e.k).find(l=>l.kontrol!=="Uygun Değil"); dl=d?String(d.lot):""; }
+    const dr=dl&&lotRec(e.k,dl); if(!isOwn(e.k)&&(!dl||(dr&&dr.kontrol==="Uygun Değil"))){ const d=defterOf(e.k).find(l=>l.kontrol!=="Uygun Değil"); dl=d?String(d.lot):""; }
     v["lot_"+e.k]=dl;
     // SKT: seçili lotun defterdeki SKT'si; lot defterde yoksa eskisi gibi en son sertifikadaki SKT
     const cur=manual.has("lot_"+e.k)? (document.getElementById("lot_"+e.k)||{}).value : dl, lr=lotRec(e.k,cur);
+    if(isOwn(e.k)){ const os=ownSktFromLot(e.k,cur,$("mfgDate").value||todayISO()); if(os){ v["e_"+e.k]=os; return; } }   // kendi üretim: SKT lottan hesaplanır
     if(lr&&/^(0[1-9]|1[0-2])\/\d{4}$/.test(String(lr.skt||""))){ v["e_"+e.k]=lr.skt; return; }
     const src=bySaved.find(r=>/^(0[1-9]|1[0-2])\/\d{4}$/.test(String(r["e_"+e.k]||"")));
     v["e_"+e.k]=src? src["e_"+e.k] : (la?(la["e_"+e.k]||""):""); });
@@ -1880,7 +1912,12 @@ function recompute(){
   EQ.forEach(e=>{ const off=notInPack(e); ["q_","lot_","e_"].forEach(pf=>{ const el=$(pf+e.k); el.readOnly=off; el.closest(".f").classList.toggle("locked",off); }); });
   renderLotTags(); renderChips();
 }
-FIELDS.forEach(k=>$(k).addEventListener("input",()=>{manual.add(k);recompute();}));
+FIELDS.forEach(k=>$(k).addEventListener("input",()=>{ manual.add(k);
+  // Kendi üretim: lot değişince SKT lottan gelir; gıda/ilk yardımda SKT değişince lot SKT'den gelir
+  const m=/^(lot|e)_(food|aid|water)$/.exec(k);
+  if(m&&m[1]==="lot") manual.delete("e_"+m[2]);
+  if(m&&m[1]==="e"&&m[2]!=="water"){ const L=ownLotFromSkt(m[2],$(k).value); if(L){ $("lot_"+m[2]).value=L; manual.add("lot_"+m[2]); } }
+  recompute(); }));
 fillLotLists();
 $("mfgDate").addEventListener("change",recompute);
 
@@ -2021,7 +2058,7 @@ const EXP_RE=/^(0[1-9]|1[0-2])\/\d{4}$/, DATE_RE=/^\d{2}\.\d{2}\.\d{4}$/;
 function collect(){
   const r={model:state.model,pack:state.pack,mfg:isoToTR($("mfgDate").value),by:auth?auth.name:""};
   FIELDS.forEach(k=>r[k]=$(k).value.trim());
-  EQ.forEach(e=>{ r["lot_"+e.k]=String(r["lot_"+e.k]||"").toLocaleUpperCase("tr-TR"); });
+  EQ.forEach(e=>{ r["lot_"+e.k]=String(r["lot_"+e.k]||"").toLocaleUpperCase("tr-TR"); if(isOwn(e.k)) r["lot_"+e.k]=ownNorm(e.k,r["lot_"+e.k]); });
   return r;
 }
 function validate(r){
