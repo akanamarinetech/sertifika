@@ -68,6 +68,7 @@ input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);ou
 .eq .f.lotmiss input{border-color:var(--err,#B42318);background:color-mix(in srgb,var(--err,#B42318) 7%,var(--field,#fff))}
 .msg.lotwarn{margin-top:8px}
 .eqh .n{display:none}
+.eq.rub{border-top:1px dashed var(--line);padding-top:10px;margin-top:4px}
 .eq .n{font-size:14px;font-weight:500;min-width:0}
 .eq .n small{display:block;font-size:11px;color:var(--muted);font-weight:400}
 .eqh{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
@@ -1754,6 +1755,11 @@ EQ.forEach(e=>{
     <div class="f" data-k="e_${e.k}"><input id="e_${e.k}" placeholder="AA/YYYY" inputmode="decimal" aria-label="${e.tr} son kullanma"></div>`;
   $("eqBody").appendChild(row);
 });
+// Rubber kumaşı: sadece lot (belgeye yazılmaz, İzlenebilirlik'e aktarılır)
+(()=>{ const row=document.createElement("div"); row.className="eq rub";
+  row.innerHTML=`<div class="n">Rubber kumaşı<small>Rubber fabric · sadece lot</small></div><span></span>
+    <div class="f lotf" data-k="lot_rubber"><input id="lot_rubber" list="dl_rubber" placeholder="Lot no" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Rubber kumaşı lot"><datalist id="dl_rubber"></datalist></div><span></span>`;
+  $("eqBody").appendChild(row); })();
 CH.forEach(([p,t])=>{
   const d=document.createElement("div"); d.className="ch";
   d.innerHTML=`<h3>${t}</h3>
@@ -1782,7 +1788,7 @@ const defterOf=k=>lotDefter.filter(l=>l.k===k).sort((a,b)=>(gKey(b.gelis)+(b.cre
 const lotRec=(k,v)=>{ v=String(v||"").trim().toLocaleUpperCase("tr-TR"); return v? lotDefter.find(l=>l.k===k&&String(l.lot).toLocaleUpperCase("tr-TR")===v) : null; };
 function setLots(j){ if(j&&Array.isArray(j.lots)){ lotDefter=j.lots; store.set("cert_lots",lotDefter); fillLotLists(); }
   if(j&&j.ilkSeri){ ilkSeri=String(j.ilkSeri); store.set("cert_ilkseri",ilkSeri); } }
-function fillLotLists(){ EQ.forEach(e=>{ const dl=document.getElementById("dl_"+e.k); if(!dl) return;
+function fillLotLists(){ EQ.concat([{k:"rubber"}]).forEach(e=>{ const dl=document.getElementById("dl_"+e.k); if(!dl) return;
   dl.innerHTML=defterOf(e.k).filter(l=>l.kontrol!=="Uygun Değil").slice(0,15).map(l=>`<option value="${String(l.lot).replace(/"/g,"&quot;")}" label="${l.skt?"SKT "+l.skt:""}${l.ted?" · "+String(l.ted).replace(/"/g,"&quot;"):""}">`).join(""); }); }
 // ---- Kendi üretim lotları (gıda, ilk yardım: aylık; su: günlük) ----
 // Gıda: SKT 11/2031 = Lot 097, her ay +1 (5 yıl). İlk yardım: SKT 11/2029 = Lot 057, her ay +1 (3 yıl).
@@ -1821,7 +1827,10 @@ function lotStatus(k,v){ v=String(v||"").trim(); if(v==="-") return null; if(!v)
     const ev=($("e_"+k)||{}).value||""; if(ev&&ev!==os) return ["warn", k==="water"?"SN YAZIN":"SKT UYMUYOR"]; return null; }
   const r=lotRec(k,v);
   if(!r) return ["warn","GİRİŞİ YOK"]; if(r.kontrol==="Uygun Değil") return ["bad","UYGUN DEĞİL"]; return null; }
-function renderLotTags(){ EQ.forEach(e=>{ const el=document.getElementById("lot_"+e.k); if(!el) return; const box=el.closest(".f");
+function renderLotTags(){
+  { const el=$("lot_rubber"); if(el){ const box=el.closest(".f"); box.querySelectorAll(".ltag").forEach(x=>x.remove()); const st=lotStatus("rubber",el.value);
+    if(st){ const t=document.createElement("span"); t.className="ltag "+st[0]; t.textContent=st[1]; box.appendChild(t); } box.classList.toggle("lotmiss",!!(st&&st[0]==="bad")); } }
+  EQ.forEach(e=>{ const el=document.getElementById("lot_"+e.k); if(!el) return; const box=el.closest(".f");
   box.querySelectorAll(".ltag").forEach(x=>x.remove()); const st=notInPack(e)?null:lotStatus(e.k,el.value);
   if(st){ const t=document.createElement("span"); t.className="ltag "+st[0]; t.textContent=st[1]; box.appendChild(t); }
   box.classList.toggle("lotmiss",!!(st&&st[0]==="bad"));
@@ -1894,6 +1903,10 @@ function autoValues(){
   CH.forEach(([p])=>{const wp=manual.has(p+"_wp")?$(p+"_wp").value:v[p+"_wp"]; if(wp!==undefined&&wp!=="") v[p+"_m"]=wp;});
   ["up","lo"].forEach(p=>{const wp=num(manual.has(p+"_wp")?$(p+"_wp").value:v[p+"_wp"]);
     if(wp!==null){v[p+"_open"]=String(wp+20);v[p+"_close"]=String(wp);}});
+  { const lr=bySaved.find(r=>{ const x=String(r.lot_rubber||"").trim(); return x&&x!=="-"; });
+    let dl=lr? String(lr.lot_rubber).trim().toLocaleUpperCase("tr-TR") : ""; const dr=dl&&lotRec("rubber",dl);
+    if(!dl||(dr&&dr.kontrol==="Uygun Değil")){ const d=defterOf("rubber").find(l=>l.kontrol!=="Uygun Değil"); dl=d?String(d.lot):""; }
+    v.lot_rubber=dl; }
   return v;
 }
 const notInPack=e=>state.pack==="B" && e.b===0;
@@ -2063,6 +2076,7 @@ function collect(){
   const r={model:state.model,pack:state.pack,mfg:isoToTR($("mfgDate").value),by:auth?auth.name:""};
   FIELDS.forEach(k=>r[k]=$(k).value.trim());
   EQ.forEach(e=>{ r["lot_"+e.k]=String(r["lot_"+e.k]||"").toLocaleUpperCase("tr-TR"); if(isOwn(e.k)) r["lot_"+e.k]=ownNorm(e.k,r["lot_"+e.k]); });
+  r.lot_rubber=String(r.lot_rubber||"").toLocaleUpperCase("tr-TR");
   return r;
 }
 function validate(r){
@@ -2077,6 +2091,7 @@ function validate(r){
     if(!yok && !EXP_RE.test(r["e_"+e.k])) errs.push(e.tr+" SKT");
     if(!yok && String(r.serial)>=String(ilkSeri||"20260753")){ const lv=r["lot_"+e.k];
       if(lv&&lv!=="-"){ const lr=lotRec(e.k,lv); if(lr&&lr.kontrol==="Uygun Değil") errs.push(e.tr+" lot ("+lv+" uygun değil)"); } } });
+  { const rl=lotRec("rubber",r.lot_rubber); if(r.lot_rubber&&rl&&rl.kontrol==="Uygun Değil") errs.push("Rubber kumaşı lot ("+r.lot_rubber+" uygun değil)"); }
   CH.forEach(([p,t])=>["sn","wp","m"].forEach(s=>{if(!r[p+"_"+s]) errs.push(t.split(" (")[0]+" "+({sn:"seri",wp:"basınç",m:"ölçüm"})[s]);}));
   return [...new Set(errs)];
 }
@@ -2148,7 +2163,8 @@ async function shareDoc(r,where){
 
 // Lotu boş kalan kalemler (kaydı engellemez, kırmızı uyarı verir)
 function lotEksik(r){ if(String(r.serial)<String(ilkSeri||"20260753")) return [];
-  return EQ.filter(e=>{ const q=r["q_"+e.k]; if(q==="-"||Number(q)===0) return false; const v=r["lot_"+e.k]; return !v||v==="-"; }).map(e=>e.tr); }
+  const out=EQ.filter(e=>{ const q=r["q_"+e.k]; if(q==="-"||Number(q)===0) return false; const v=r["lot_"+e.k]; return !v||v==="-"; }).map(e=>e.tr);
+  if(!r.lot_rubber||r.lot_rubber==="-") out.push("Rubber kumaşı"); return out; }
 // ---------- save ----------
 async function saveForm(draft){
   const r=collect(); r.status = draft? "Taslak" : "Tamamlandı";

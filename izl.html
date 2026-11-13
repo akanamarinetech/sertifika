@@ -110,6 +110,8 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(110px
 .item .meta{font-size:12.5px;color:var(--muted)}
 .item button{border:1px solid var(--line);background:var(--field);color:var(--fg);font:600 12.5px var(--sans);padding:8px 11px;border-radius:8px;cursor:pointer}
 .item button.go{background:var(--accent);border-color:var(--accent);color:#fff}
+.item a.kbtn{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--field);color:var(--fg);font:600 12.5px var(--sans);padding:8px 11px;border-radius:8px;text-decoration:none}
+.item a.kbtn:hover{border-color:var(--ink)}
 .pill{display:inline-block;font:600 11px var(--mono);background:var(--accent-soft);color:var(--accent);padding:2px 7px;border-radius:6px;margin-right:6px}
 .hit{margin-top:4px;font-size:12.5px;color:var(--accent);font-weight:600}
 .hit b{font:600 12.5px var(--mono);color:var(--accent)}
@@ -584,7 +586,7 @@ function renderList(){
         return norm([r.serial,c.model,...ITEMS.map(i=>r["lot_"+i.k]),c.c1sn,c.c2sn].join(" ")).includes(q); })
       .map(r=>{ const c=certOf(r.serial)||{}; const hit=q?ITEMS.find(i=>norm(r["lot_"+i.k]).includes(q)):null;
         return `<div class="item"><div><b>${esc(r.serial)}</b><div class="meta">${c.model?`<span class="pill ok">${esc(c.model)}</span>`:""}${esc(r.by||"")} · ${esc(isoToTR(String(r.createdAt||"").slice(0,10)))}</div>${hit?`<div class="hit">${esc(hit.tr)}: <b>${esc(r["lot_"+hit.k])}</b></div>`:""}</div>
-          <span style="display:flex;gap:6px"><a class="go" style="text-decoration:none;background:transparent;color:var(--ink);border:1px solid var(--line)" href="kart.html?s=${encodeURIComponent(r.serial)}" target="_blank" rel="noopener">Kart</a><button data-s="${esc(r.serial)}">Aç</button></span></div>`; });
+          <span style="display:flex;gap:6px"><a class="kbtn" href="kart.html?s=${encodeURIComponent(r.serial)}" target="_blank" rel="noopener">Kart</a><button data-s="${esc(r.serial)}">Aç</button></span></div>`; });
     $("list").innerHTML=rows.join("")||`<div class="empty">${q?"Bu lot ya da seri numarası hiçbir kayıtta yok.":"Henüz kayıt yok."}</div>`;
   }
   $("list").querySelectorAll("button[data-s]").forEach(b=>b.onclick=()=>openForm(b.dataset.s));
@@ -603,7 +605,7 @@ function openForm(serial){
   $("hInfo").textContent=[cert.model,cert.pack&&("Paket "+cert.pack),capOf(cert)&&(capOf(cert)+" kişilik"),cert.mfg].filter(Boolean).join(" · ");
   const p=latest().find(x=>String(x.serial)!==String(serial));
   $("prevNote").innerHTML=saved?`Bu salın kaydı var. Değiştirip tekrar kaydedebilirsiniz.`
-    : ITEMS.some(i=>certLot(i.k))? `Malzeme lotları <b>sertifikadan</b> geldi. Kumaş lotunu kontrol edip <u>Kaydet</u>'e basmanız yeterli.`
+    : ITEMS.some(i=>certLot(i.k))? `Lotlar <b>sertifikadan</b> geldi. Kontrol edip <u>Kaydet</u>'e basmanız yeterli.`
     : p?`Lotlar en son girilen <b>${esc(p.serial)}</b> numaralı saldan geldi. Sadece <u>değişenleri</u> düzeltin.`:`Lotlar Malzeme Girişi'ndeki son lotlardan geldi. Kontrol edin.`;
   $("prevNote").hidden=false;
   renderLots(); renderSN(); renderProc();
