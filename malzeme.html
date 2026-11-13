@@ -388,6 +388,7 @@ async function api(body){
   const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({...body,pin:auth&&auth.pin})});
   const j=await res.json();
   if(j&&j.code==="auth"){ logout("Erişiminiz kapatılmış ya da PIN değişmiş."); throw new Error("auth"); }
+  if(j&&j.sayac&&typeof j.sayac==="object"){ store.set("cert_sayac",j.sayac); try{ renderNav(); }catch(e){} }   // menü sayaçları her sayfada güncel
   return j;
 }
 

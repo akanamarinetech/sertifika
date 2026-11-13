@@ -398,6 +398,7 @@ async function api(body){
   const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({...body,pin:auth&&auth.pin})});
   const j=await res.json();
   if(j&&j.code==="auth"){ logout("Erişiminiz kapatılmış ya da PIN değişmiş."); throw new Error("auth"); }
+  if(j&&j.sayac&&typeof j.sayac==="object"){ store.set("cert_sayac",j.sayac); try{ renderNav(); }catch(e){} }   // menü sayaçları her sayfada güncel
   return j;
 }
 
@@ -435,7 +436,7 @@ const skOf=s=>sks.find(x=>String(x.serial)===String(s));
 const certOf=s=>certs.find(c=>String(c.serial)===String(s));
 const testOf=s=>tests.find(t=>String(t.serial)===String(s));
 function waitingCerts(){ return certs.filter(c=>c.status!=="İptal"&&c.status!=="Taslak"&&!skOf(c.serial)&&(!ilkSeri||String(c.serial)>=ilkSeri)); }
-function renderNav(){ const sc=store.get("cert_sayac",{}); drawNav("sk",{sk:waitingCerts().length,test:sc.test||0,izl:sc.izl||0,rec:certs.length}); }
+function renderNav(){ const sc=store.get("cert_sayac",{}); try{ const n=waitingCerts().length; if(certs.length&&sc.sk!==n){ sc.sk=n; store.set("cert_sayac",sc); } }catch(e){} drawNav("sk",{sk:waitingCerts().length,test:sc.test||0,izl:sc.izl||0,rec:certs.length}); }
 $("sLogo").src=$("logo").src; $("sLogout").onclick=()=>logout("");
 
 // ---------- views ----------
