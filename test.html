@@ -735,7 +735,7 @@ async function buildXlsx(r){
   let x=await zip.file(path).async("string");
   const n=v=>{ const k=num(v); return k===null? (v||"") : k; };
   const pct=d=> d===null? "" : "%"+fmt(d);
-  x=setCell(x,"A5",`CAN SALI SERİ NO: ${r.serial}  ·  ANA-${r.model||""}`);
+  x=setCell(x,"A8",`SERİ NO: ${r.serial||""}`);
   x=setCell(x,"J5","TARİH: "+(r.tarih||""));        // J5:K5 birleşik hücre
   const lab={lo:"ALT SİLİNDİR",up:"ÜST SİLİNDİR",ar:"DİREK"};
   CH.forEach(([p])=>{
