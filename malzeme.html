@@ -233,8 +233,23 @@ body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:calc(110px
 .ar .fi{grid-column:1/-1;font-weight:600;color:var(--fg)}
 .st.sold{background:var(--auto-soft);color:var(--auto)}
 /* ---------- Geri çağırma takibi ---------- */
-.gcl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:12px 16px;cursor:pointer;font:inherit;color:var(--fg)}
-.gcl:last-child{border-bottom:0} .gcl:hover{background:var(--field)}
+.tlab{font-size:12px;color:var(--muted);font-weight:500}
+.gtur{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:640px}
+.gtur button{display:flex;gap:10px;align-items:flex-start;text-align:left;border:2px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg);padding:12px 14px;cursor:pointer;font:inherit;box-shadow:0 1px 2px rgba(11,37,69,.06)}
+.gtur button:hover{border-color:var(--auto)}
+.gtur b{display:block;font-size:14.5px;color:var(--ink)} .gtur small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.gtur .o{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);margin-top:2px;background:var(--surface)}
+.gtur button[data-v="Gerçek"][aria-pressed="true"]{border-color:var(--err);background:var(--err-soft)}
+.gtur button[data-v="Gerçek"][aria-pressed="true"] .o{border-color:var(--err);background:radial-gradient(circle,var(--err) 45%,transparent 50%)}
+.gtur button[data-v="Gerçek"][aria-pressed="true"] b{color:var(--err)}
+.gtur button[data-v="Tatbikat"][aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.gtur button[data-v="Tatbikat"][aria-pressed="true"] .o{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 45%,transparent 50%)}
+.gtur button[data-v="Tatbikat"][aria-pressed="true"] b{color:var(--accent)}
+@media (max-width:560px){ .gtur{grid-template-columns:1fr} }
+
+.gcl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:12px 16px;font:inherit;color:var(--fg)}
+.gcl .ga{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px} .gcl .ga .btn{flex:none;padding:8px 14px;font-size:13.5px}
+.gcl:last-child{border-bottom:0}
 .gcl .t{font-weight:700;color:var(--ink);display:flex;gap:8px;align-items:center;flex-wrap:wrap} .gcl .t b{font-family:var(--mono)}
 .gcl .m{grid-column:1/-1;font-size:12.5px;color:var(--muted)}
 .gcl .pb{grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap;font:600 12px var(--mono);color:var(--fg)}
@@ -401,7 +416,7 @@ body.lgOpen{overflow:hidden}
     <button id="tabNew" role="tab" aria-selected="true">Yeni Giriş</button>
     <button id="tabList" role="tab" aria-selected="false">Lot Defteri <span id="lotCount"></span></button>
     <button id="tabAra" role="tab" aria-selected="false">Lot Ara</button>
-    <button id="tabGc" role="tab" aria-selected="false" hidden>Geri Çağırmalar <span id="gcCount"></span></button>
+    <button id="tabGc" role="tab" aria-selected="false">Geri Çağırmalar <span id="gcCount"></span></button>
   </div>
 
   <div id="viewNew" hidden>
@@ -724,7 +739,7 @@ function renderList(){
 }
 
 // ---------- lot ara (geri çağırma) ----------
-let araSon=null, araHepsi=false;
+let araSon=null, araHepsi=false, gcDetay=false;
 const escH=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 $("tabAra").onclick=()=>{ showView("ara"); setTimeout(()=>$("araQ").focus(),50); };
 $("araQ").addEventListener("input",()=>{ const el=$("araQ"), p=el.selectionStart; el.value=el.value.toLocaleUpperCase("tr-TR"); try{ el.setSelectionRange(p,p); }catch(e){} });
@@ -732,7 +747,7 @@ $("araForm").addEventListener("submit",ev=>{ ev.preventDefault(); lotAra($("araQ
 async function lotAra(q){
   q=String(q||"").trim().toLocaleUpperCase("tr-TR"); $("araQ").value=q;
   if(q.replace(/\s/g,"").length<2){ msg("araMsg","err","En az 2 karakter yazın."); return; }
-  msg("araMsg","info","Aranıyor…"); $("araOut").innerHTML=""; araHepsi=false;
+  msg("araMsg","info","Aranıyor…"); $("araOut").innerHTML=""; araHepsi=false; gcDetay=!!lotAra.detay; lotAra.detay=false;
   try{ const j=await api({action:"lotAra",q});
     if(!j.ok){ msg("araMsg","err", j.error==="Bilinmeyen işlem" ? "E-Tablo kodu güncel değil. Apps Script'te yeni sürümü dağıtın." : (j.error||"Aranamadı.")); return; }
     msg("araMsg"); araSon=j; renderAra();
@@ -756,7 +771,7 @@ function renderAra(){
   // --- özet ---
   let h="";
   if(j.kilit) h+=`<div class="gk">🔒<div><b>${escH(j.q)} geri çağrıldı (${escH(j.kilit)}) · kilitli.</b> Bu lot yeni sertifikaya ve İzlenebilirlik'e yazılamaz. Bu lotu taşıyan sallar, malzemesi değiştirilip İzlenebilirlik güncellenene kadar satılamaz.</div></div>`;
-  else if(j.gc&&j.gc.durum==="Açık") h+=`<div class="gk tat">🧪<div><b>${escH(j.gc.no)} tatbikatı açık.</b> Tatbikatta lot kilitlenmez.</div></div>`;
+  else if(j.gc&&j.gc.durum==="Açık") h+=`<div class="msg info" style="margin-bottom:14px">ℹ️ Bu lot için <b>${escH(j.gc.no)}</b> tatbikatı devam ediyor. Tatbikat lotu kilitlemez, sertifika ve satış normal devam eder.</div>`;
   h+=`<section class="card"><h2>Sonuç <small>${escH(kalemler.join(", "))}</small></h2><div class="asum">`;
   h+= tamVar ? `<h3>Lot <b>${escH(araHepsi?j.q+" (benzerleri dahil)":j.q)}</b></h3>` : `<h3>Tam eşleşme yok · içinde <b>${escH(j.q)}</b> geçen lotlar: <b>${escH(lotlar.join(", "))}</b></h3>`;
   h+=`<div class="big"><div><b>${ser.length}</b><span>can salı</span></div>`;
@@ -772,13 +787,17 @@ function renderAra(){
   if(!j.yon) h+=`<div class="more">Satılan salların firma bilgisi sadece yönetici hesabında görünür.</div>`;
   h+=`</div></section>`;
   // --- geri çağırma takibi (yönetici) ---
-  if(j.gc) h+=gcHtml(j.gc);
+  if(j.gc&&(j.gc.durum==="Açık"||gcDetay)) h+=gcHtml(j.gc);
+  else if(j.gc) h+=`<section class="card"><div class="gcl"><span class="t"><b>${escH(j.gc.no)}</b> ${j.gc.tur==="Tatbikat"?"Tatbikat":"Geri çağırma"} · Lot ${escH(j.gc.lots||j.gc.lot)}</span>${j.gc.onayBy?`<span class="pl ok">✓ Onaylandı</span>`:`<span class="pl bek">Onay bekliyor</span>`}
+    <span class="m">${j.gc.onayBy?"Onay: "+escH(j.gc.onayBy)+" · "+escH(j.gc.onayAt):"Onaya gönderildi: "+escH(j.gc.kapanis)+" · yetkili onayı bekleniyor"}</span>
+    <span class="ga"><button type="button" class="btn ghost" id="gcDetay">Görüntüle</button></span></div></section>`;
   if(tamVar&&(!j.gc||j.gc.durum!=="Açık")) h+=`<section class="card"><h2>${j.gc?"Yeni geri çağırma başlat":"Geri çağırma başlat"} <small>PR.10-FR.05</small></h2><div class="gcf">
-    <div class="seg" id="gcTur"><button type="button" class="nv" data-v="Gerçek" aria-pressed="${gcTur==="Gerçek"}">Gerçek geri çağırma</button><button type="button" class="nv" data-v="Tatbikat" aria-pressed="${gcTur==="Tatbikat"}">Tatbikat</button></div>
+    <div class="tlab">Tür seçin</div>
+    <div class="gtur" id="gcTur" role="radiogroup"><button type="button" role="radio" data-v="Gerçek" aria-pressed="${gcTur==="Gerçek"}" aria-checked="${gcTur==="Gerçek"}"><span class="o"></span><span><b>Gerçek geri çağırma</b><small>Lot kilitlenir, sertifikaya yazılamaz ve satılamaz</small></span></button><button type="button" role="radio" data-v="Tatbikat" aria-pressed="${gcTur==="Tatbikat"}" aria-checked="${gcTur==="Tatbikat"}"><span class="o"></span><span><b>Tatbikat</b><small>Deneme, hiçbir şey kilitlenmez</small></span></button></div>
     <div class="g2"><div class="f"><label for="gcKim">Bildiren / Kaynak</label><input id="gcKim" class="txt" placeholder="Örn. tedarikçi e-postası, müşteri, iç kontrol" value="${escH(gcKim)}"></div>
       <div class="f"><label for="gcTarih">Bildirim Tarihi</label><input id="gcTarih" type="date" value="${escH(gcTarih||todayISO())}"></div></div>
     <div class="f"><label for="gcSorun">Sorun Tanımı</label><input id="gcSorun" class="txt" placeholder="${gcTur==="Tatbikat"?"Örn. Yıllık geri çağırma tatbikatı":"Örn. Tedarikçi bu lotta ateşleme sorunu bildirdi"}" value="${escH(gcSorun)}"></div>
-    <button class="btn primary" type="button" id="gcBtn">${gcTur==="Tatbikat"?"Tatbikatı başlat":"Geri çağırmayı başlat"}</button>
+    <button class="btn primary" type="button" id="gcBtn"${gcTur==="Gerçek"?' style="background:var(--err)"':""}>${gcTur==="Tatbikat"?"Tatbikatı başlat":"Geri çağırmayı başlat"}</button>
     <div class="hintline">${gcTur==="Tatbikat"?"Tatbikatta hiçbir şey kilitlenmez. Firmaların iletişim bilgilerini ve depodaki salları kontrol edip işaretlersiniz.":"Başlatınca <b>"+escH(j.q)+"</b> lotu kilitlenir: yeni sertifikaya yazılamaz, bu lotu taşıyan sallar satılamaz. Firmaları ve salları bu ekranda işaretleyerek takip edersiniz."}</div>
   </div></section>`;
   // --- firmalar (yönetici) ---
@@ -824,10 +843,11 @@ function renderAra(){
       catch(e){ if(e.message!=="auth") msg("araMsg","err","Sunucuya ulaşılamadı."); b.disabled=false; } };
   }
   if(j.gc&&$("gcCard")) gcBagla(j.gc);
+  if($("gcDetay")) $("gcDetay").onclick=()=>{ gcDetay=true; renderAra(); };
 }
 // ---------- geri çağırmalar listesi ----------
 let gcListe=null;
-$("tabGc").onclick=()=>showView("gc");
+$("tabGc").onclick=()=>{ msg("gcMsg"); showView("gc"); };
 async function gcListeYukle(sessiz){
   try{ const r=await api({action:"gcListe"});
     if(!r.ok){ if(!sessiz) msg("gcMsg","err", r.error==="Bilinmeyen işlem"?"E-Tablo kodu güncel değil. Apps Script'te yeni sürümü dağıtın.":r.error); return; }
@@ -845,12 +865,25 @@ function renderGcListe(){
     a.forEach(g=>{ const pf=g.ilerleme.firma, ps=g.ilerleme.sal, w=x=>x[1]?Math.round(x[0]/x[1]*70):70;
       const pl= g.durum==="Açık" ? (g.tur==="Tatbikat"?`<span class="pl tat">Tatbikat · açık</span>`:`<span class="pl acik">Açık · lot kilitli</span>`)
         : !g.onayBy ? `<span class="pl bek">Onay bekliyor</span>` : `<span class="pl ok">✓ Onaylandı</span>`;
-      h+=`<button type="button" class="gcl" data-lot="${escH(g.lot)}"><span class="t"><b>${escH(g.no)}</b> ${escH(g.kalem||"")} · Lot ${escH(g.lots||g.lot)}${g.tur==="Tatbikat"&&g.durum!=="Açık"?' <span class="pl tat">Tatbikat</span>':""}</span>${pl}
-        <span class="m">Açılış ${escH(g.acilis)} · ${escH(g.acan)}${g.kapanis?" · Kapanış "+escH(g.kapanis):""}${g.onayBy?" · Onay "+escH(g.onayBy)+" "+escH(g.onayAt):""}${g.sorun?" · "+escH(g.sorun):""}</span>
-        ${g.durum==="Açık"?`<span class="pb"><span>Firmalar ${pf[0]}/${pf[1]} <i><u style="width:${w(pf)}px"></u></i></span><span>Sallar ${ps[0]}/${ps[1]} <i><u style="width:${w(ps)}px"></u></i></span>${g.kapatilabilir?"<span style=\"color:var(--ok)\">✓ kapatılabilir</span>":""}</span>`:""}</button>`; });
+      const ben=auth&&auth.name===g.acan, onayla=g.durum==="Kapatıldı"&&!g.onayBy&&isAdmin();
+      h+=`<div class="gcl" data-i="${L.indexOf(g)}"><span class="t"><b>${escH(g.no)}</b> ${escH(g.kalem||"")} · Lot ${escH(g.lots||g.lot)}${g.tur==="Tatbikat"&&g.durum!=="Açık"?' <span class="pl tat">Tatbikat</span>':""}</span>${pl}
+        <span class="m">Açılış ${escH(g.acilis)} · ${escH(g.acan)}${g.kapanis?" · Onaya gönderildi "+escH(g.kapanis):""}${g.onayBy?" · Onay "+escH(g.onayBy)+" "+escH(g.onayAt):""}${g.sorun?" · "+escH(g.sorun):""}</span>
+        ${g.durum==="Açık"?`<span class="pb"><span>Firmalar ${pf[0]}/${pf[1]} <i><u style="width:${w(pf)}px"></u></i></span><span>Sallar ${ps[0]}/${ps[1]} <i><u style="width:${w(ps)}px"></u></i></span>${g.kapatilabilir?"<span style=\"color:var(--ok)\">✓ kapatılabilir</span>":""}</span>`:""}
+        <span class="ga"><button type="button" class="btn ghost" data-act="ac">Görüntüle</button>${g.onayBy?`<button type="button" class="btn ghost" data-act="xl">Formu indir</button>`:g.durum==="Kapatıldı"?`<button type="button" class="btn ghost" data-act="xl">Formu önizle</button>`:""}${onayla?`<button type="button" class="btn okb" data-act="on"${ben?" disabled title=\"Bu kaydı siz açtınız\"":""}>✓ Onayla ve kaydet</button>${ben?`<span class="hintline">Kendi açtığınız kaydı onaylayamazsınız.</span>`:""}`:""}</span></div>`; });
     h+=`</section>`; });
   box.innerHTML=h;
-  box.querySelectorAll(".gcl").forEach(b=>b.onclick=()=>{ showView("ara"); lotAra(b.dataset.lot); });
+  box.querySelectorAll(".gcl").forEach(row=>{ const g=L[+row.dataset.i];
+    row.querySelector('[data-act="ac"]').onclick=()=>{ msg("gcMsg"); showView("ara"); lotAra.detay=true; lotAra(g.lot); };
+    const xb=row.querySelector('[data-act="xl"]'); if(xb) xb.onclick=async()=>{ try{ await gcIndir(g.gc,"gcMsg"); }catch(e){ msg("gcMsg","err","Form oluşturulamadı: "+e.message); } };
+    const on=row.querySelector('[data-act="on"]');
+    if(on) on.onclick=async()=>{ if(!confirm(g.no+" onaylanacak ve form Drive'a kaydedilecek. Devam edilsin mi?")) return;
+      on.disabled=true; on.textContent="Onaylanıyor…";
+      try{ const tmp=Object.assign({},g.gc,{onayBy:auth.name,onayAt:isoToTR(todayISO())});
+        const xlsx=await (await gcZip(tmp)).generateAsync({type:"base64",compression:"DEFLATE"});
+        const r=await api({action:"gcOnay",no:g.no,xlsx});
+        if(r.ok){ msg("gcMsg",r.excel==="ok"?"ok":"info","✓ "+g.no+" onaylandı."+(r.excel==="ok"?" Form Drive'a kaydedildi.":r.excel?" "+r.excel:"")); gcListeYukle(); }
+        else { msg("gcMsg","err",r.error); on.disabled=false; on.textContent="✓ Onayla ve kaydet"; } }
+      catch(e){ if(e.message!=="auth") msg("gcMsg","err","Sunucuya ulaşılamadı."); on.disabled=false; on.textContent="✓ Onayla ve kaydet"; } }; });
 }
 
 // ---------- geri çağırma takip kartı ----------
@@ -861,7 +894,7 @@ const GC_SEC={ Gerçek:{ sat:["İade alındı","Serviste malzeme değiştirildi"
 function gcHtml(g){
   const ac=g.durum==="Açık", C=GC_SEC[g.tur]||GC_SEC.Gerçek, dis=ac?"":" disabled";
   const pct=a=>a[1]?Math.round(a[0]/a[1]*100):100;
-  let h=`<section class="card gcard" id="gcCard"><h2>${g.tur==="Tatbikat"?"Tatbikat":"Geri Çağırma"} · ${escH(g.no)} <span class="gtag${ac?"":" k"}">${ac?"Açık":"Kapatıldı "+escH(g.kapanis)}${g.onayBy?" · Onaylandı":""}</span></h2>`;
+  let h=`<section class="card gcard" id="gcCard"><h2>${g.tur==="Tatbikat"?"Tatbikat":"Geri Çağırma"} · ${escH(g.no)} <span class="gtag${ac?"":" k"}">${ac?"Açık":g.onayBy?"✓ Onaylandı "+escH(g.onayAt):"Onay bekliyor · gönderildi "+escH(g.kapanis)}</span></h2>`;
   h+=`<div class="prog"><div class="row"><span>Açan: ${escH(g.acan)} · ${escH(g.acilis)}${g.kaynak?" · Kaynak: "+escH(g.kaynak):""}</span></div>`;
   if(g.sorun) h+=`<div class="row"><span>${escH(g.sorun)}</span></div>`;
   h+=`<div class="row"><span>Firmalar · ${escH(C.firma.toLocaleLowerCase("tr-TR"))}</span><b>${g.ilerleme.firma[0]} / ${g.ilerleme.firma[1]}</b></div><div class="bar2"><i style="width:${pct(g.ilerleme.firma)}%"></i></div>
@@ -878,7 +911,7 @@ function gcHtml(g){
   g.sallar.forEach(s=>{ const sat=s.durum==="Satıldı", ops=sat?C.sat:C.stok, cur=s.islem?s.islem.v:"";
     const opts=`<option value="">— seçin —</option>`+(s.islem&&s.islem.oto?`<option selected>${escH(cur)}</option>`:"")+ops.map(o=>`<option${o===cur?" selected":""}>${escH(o)}</option>`).join("")+(cur&&!s.islem.oto&&!ops.includes(cur)?`<option selected>${escH(cur)}</option>`:"");
     h+=`<div class="sr"><b>${escH(s.serial)}</b><span>ANA-${escH(s.model)} · ${escH(s.durum)}${s.firma?" · "+escH(s.firma):""}${s.simdikiLot&&s.simdikiLot!==s.lot?" · şimdiki lot "+escH(s.simdikiLot):""}</span>
-      <select data-ss="${escH(s.serial)}" aria-label="${escH(s.serial)} yapılan işlem"${dis||(s.islem&&s.islem.oto?" disabled":"")}>${opts}</select>
+      <select data-ss="${escH(s.serial)}"${ac&&!s.islem?' style="border-color:var(--err);background:var(--err-soft)"':""} aria-label="${escH(s.serial)} yapılan işlem"${dis||(s.islem&&s.islem.oto?" disabled":"")}>${opts}</select>
       ${s.islem?`<span class="who">${s.islem.oto?"otomatik · İzlenebilirlik kaydından":escH(s.islem.t+" · "+s.islem.by)}</span>`:""}</div>`; });
   const dz=g.dzf||{};
   h+=`<div class="sub2">${g.tur==="Tatbikat"?"Tatbikat kontrolleri":"Düzeltici faaliyet"}</div><div class="chk">
@@ -886,9 +919,12 @@ function gcHtml(g){
     <label><input type="checkbox" id="gcDzS" ${dz.stok?"checked":""}${dis}> ${escH(C.stokTxt)}</label>
     <input class="txt" id="gcDzN" placeholder="Ek açıklama (isteğe bağlı)" value="${escH(dz.not||"")}"${dis}></div>`;
   const ben=auth&&auth.name===g.acan;
-  h+=`<div class="acts2"><button class="btn primary" type="button" id="gcForm">Formu oluştur (Excel)</button>`;
-  if(ac) h+=`<button class="btn ghost" type="button" id="gcKapat"${g.kapatilabilir?"":" disabled"}>Kapat</button><span class="hintline">${g.kapatilabilir?"Her şey tamam, kapatabilirsiniz.":"Kapat, bütün firmalar ve sallar işaretlenince açılır."}</span>`;
-  else if(!g.onayBy&&!isAdmin()) h+=`<span class="hintline">Kapatıldı · yetkili onayı bekleniyor.</span>`;
+  const fBtn=g.onayBy?"Formu indir (Excel)":!ac?"Formu önizle":"";
+  h+=`<div class="acts2">${fBtn?`<button class="btn ${g.onayBy?"primary":"ghost"}" type="button" id="gcForm">${fBtn}</button>`:""}`;
+  if(ac){ const eF=g.firmalar.filter(f=>!f.bild).map(f=>f.ad), eS=g.sallar.filter(s=>!s.islem).map(s=>s.serial);
+    const eks=[eF.length?eF.length+" firma işaretlenmedi ("+eF.join(", ")+")":"", eS.length?eS.length+" salda işlem seçilmedi ("+eS.join(", ")+")":""].filter(Boolean);
+    h+=`<button class="btn okb" type="button" id="gcKapat"${g.kapatilabilir?"":" disabled"}>Onaya gönder →</button><span class="hintline"${eks.length?' style="color:var(--err)"':""}>${g.kapatilabilir?"Her şey tamam. Onaya gönderince kayıt kilitlenir, yetkili onaylar.":"Onaya göndermek için eksik: "+escH(eks.join(" · "))}</span>`; }
+  else if(!g.onayBy&&!isAdmin()) h+=`<span class="hintline">Onaya gönderildi · yetkili onayı bekleniyor.</span>`;
   else if(!g.onayBy) h+=`<button class="btn okb" type="button" id="gcOnay"${ben?" disabled":""}>✓ Onayla</button><span class="hintline">${ben?"Bu kaydı siz açtınız, onaylayamazsınız. Başka bir yetkili onaylamalı.":"Onaylayınca form son haliyle Drive'a kaydedilir."}</span>`;
   else h+=`<span class="hintline">Onaylayan: ${escH(g.onayBy)} · ${escH(g.onayAt)}</span>`;
   return h+`</div></section>`;
@@ -911,14 +947,14 @@ function gcBagla(g){
   ["gcDzT","gcDzS","gcDzN"].forEach(id=>{ if($(id)) $(id).onchange=dz; });
   if($("gcForm")) $("gcForm").onclick=async()=>{ const b=$("gcForm"); b.disabled=true;
     try{ await gcIndir(g); }catch(e){ msg("araMsg","err","Form oluşturulamadı: "+e.message); } b.disabled=false; };
-  if($("gcKapat")) $("gcKapat").onclick=async()=>{ if(!confirm(g.no+" kapatılacak. Kapandıktan sonra değiştirilemez. Devam edilsin mi?")) return;
-    try{ const r=await api({action:"gcKapat",no:g.no}); if(r.ok){ araSon.gc=r.gc; renderAra(); gcListeYukle(true); msg("araMsg","ok","✓ "+g.no+" kapatıldı. Yetkili onayı bekleniyor."); } else msg("araMsg","err",r.error); }
+  if($("gcKapat")) $("gcKapat").onclick=async()=>{ if(!confirm(g.no+" onaya gönderilecek. Gönderdikten sonra değiştirilemez. Devam edilsin mi?")) return;
+    try{ const r=await api({action:"gcKapat",no:g.no}); if(r.ok){ araSon.gc=r.gc; showView("gc"); msg("gcMsg","ok","✓ "+g.no+" onaya gönderildi. Yetkili onayı bekleniyor."); } else msg("araMsg","err",r.error); }
     catch(e){ if(e.message!=="auth") msg("araMsg","err","Sunucuya ulaşılamadı."); } };
   if($("gcOnay")) $("gcOnay").onclick=async()=>{ const b=$("gcOnay"); b.disabled=true; b.textContent="Onaylanıyor…";
     try{ const tmp=Object.assign({},g,{onayBy:auth.name,onayAt:isoToTR(todayISO())});
       const xlsx=await (await gcZip(tmp)).generateAsync({type:"base64",compression:"DEFLATE"});
       const r=await api({action:"gcOnay",no:g.no,xlsx});
-      if(r.ok){ araSon.gc=r.gc; renderAra(); msg("araMsg",r.excel==="ok"?"ok":"info","✓ "+g.no+" onaylandı."+(r.excel==="ok"?" Form Drive'a kaydedildi.":r.excel?" "+r.excel:"")); }
+      if(r.ok){ araSon.gc=r.gc; showView("gc"); msg("gcMsg",r.excel==="ok"?"ok":"info","✓ "+g.no+" onaylandı."+(r.excel==="ok"?" Form Drive'a kaydedildi.":r.excel?" "+r.excel:"")); }
       else { msg("araMsg","err",r.error); b.disabled=false; b.textContent="✓ Onayla"; } }
     catch(e){ if(e.message!=="auth") msg("araMsg","err","Sunucuya ulaşılamadı."); b.disabled=false; } };
 }
@@ -937,6 +973,7 @@ async function gcZip(g){
   const uniq=a=>[...new Set(a.filter(Boolean))].join(", "), C=GC_SEC[g.tur]||GC_SEC.Gerçek, L=g.lotBilgi||[], S=g.sallar||[], P=g.parcalar||[], F=g.firmalar||[];
   const ck=(b,s)=>(b?"☒ ":"☐ ")+s;
   x=setCell(x,"K3",g.no);
+  if(!g.onayBy) x=setCell(x,"D3","TASLAK – ONAY BEKLİYOR  ·  resmi kayıt değildir");
   x=setCell(x,"C6",ck(g.tur!=="Tatbikat","Gerçek geri çağırma")+"        "+ck(g.tur==="Tatbikat","Tatbikat"));
   x=setCell(x,"I6",g.acilis); x=setCell(x,"L6",g.bildirim);
   x=setCell(x,"C7",g.kalem); x=setCell(x,"I7",g.lots);
@@ -954,7 +991,7 @@ async function gcZip(g){
     F.map(f=>"\n"+f.ad+": "+(f.bild?(f.bild.not||C.firma.toLocaleLowerCase("tr-TR"))+" ("+f.bild.t+", "+f.bild.by+")":"bekliyor")).join("") : "Etkilenen satış yok, firma bildirimi gerekmedi.");
   const dz=g.dzf||{};
   x=setCell(x,"C18",ck(dz.ted,C.ted+(g.tur!=="Tatbikat"&&L[0]&&L[0].ted?" ("+L[0].ted+")":""))+"     "+ck(dz.stok,C.stokTxt)+(dz.not?"\n"+dz.not:""));
-  x=setCell(x,"C19",g.kapanis); x=setCell(x,"I19",ck(g.durum==="Kapatıldı","Kapatıldı")+"        "+ck(g.durum!=="Kapatıldı","Devam ediyor"));
+  x=setCell(x,"C19",g.onayAt||""); x=setCell(x,"I19",ck(!!g.onayBy,"Kapatıldı (onaylandı)")+"        "+ck(!g.onayBy,g.durum==="Kapatıldı"?"Onay bekliyor":"Devam ediyor"));
   x=setCell(x,"A22","Ad Soyad / İmza / Tarih:   "+g.acan+"   ·   "+g.acilis);
   if(g.onayBy) x=setCell(x,"G22","Ad Soyad / İmza / Tarih:   "+g.onayBy+"   ·   "+g.onayAt+"   ·   sistemde onaylandı");
   // satır yükseklikleri: uzun metin
@@ -972,12 +1009,12 @@ async function gcZip(g){
   x=x.replace(rm[0],xml).replace(/<dimension ref="[^"]*"\/>/,`<dimension ref="A1:L${27+satirlar.length}"/>`);
   zip.file(path,x); return zip;
 }
-async function gcIndir(g){
+async function gcIndir(g,yer){
   const blob=await (await gcZip(g)).generateAsync({type:"blob",compression:"DEFLATE",mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-  const ad=g.no+"_"+(g.tur==="Tatbikat"?"TATBIKAT_":"")+String(g.lot||"LOT").replace(/[^A-Za-z0-9]+/g,"")+".xlsx";
+  const ad=g.no+"_"+(g.onayBy?"":"TASLAK_")+(g.tur==="Tatbikat"?"TATBIKAT_":"")+String(g.lot||"LOT").replace(/[^A-Za-z0-9]+/g,"")+".xlsx";
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=ad; document.body.appendChild(a); a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },4000);
-  msg("araMsg","ok","✓ Form indirildi: "+ad);
+  msg(yer||"araMsg","ok","✓ Form indirildi: "+ad);
 }
 
 // ---------- boot ----------
