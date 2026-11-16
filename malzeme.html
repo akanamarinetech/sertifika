@@ -671,10 +671,13 @@ function buildFilter(){ const v=$("fK").value;
   $("fK").innerHTML='<option value="">Tüm malzemeler</option>'+KALEM.concat(otherKinds()).map(([k,ad])=>`<option value="${k}">${ad.replace(/</g,"&lt;")}</option>`).join(""); $("fK").value=v; }
 buildFilter();
 ["fK","fS"].forEach(id=>$(id).onchange=renderList); $("q").addEventListener("input",renderList);
+const RUBBER_M={T6:27,T10:34.1,T15:47,T16:47,T20:56.5,T25:65,D15:57,D16:57,D20:62,D25:71.5};   // model başına kullanılan rubber kumaşı (metre, rulo eni 1 m)
+const rubberM=m=>RUBBER_M[String(m||"").toUpperCase().replace(/^ANA-/,"").trim()];
+const rubberTxt=m=>{ const v=rubberM(m); return v==null?"":String(v).replace(".",",")+" m"; };
 const certOf=s=>certs.find(c=>String(c.serial)===String(s));
 function usage(l){
   const rafts=izl.filter(r=>String(r["lot_"+l.k]||"").toUpperCase()===String(l.lot).toUpperCase()).map(r=>String(r.serial));
-  const units=(l.k==="rubber"||!isStd(l.k))? null : rafts.reduce((s,x)=>{ const n=parseFloat(String((certOf(x)||{})["q_"+l.k]||"").replace(",",".")); return s+(isNaN(n)?0:n); },0);
+  const units=!isStd(l.k)? null : l.k==="rubber" ? Math.round(rafts.reduce((s,x)=>s+(rubberM((certOf(x)||{}).model)||0),0)*10)/10 : rafts.reduce((s,x)=>{ const n=parseFloat(String((certOf(x)||{})["q_"+l.k]||"").replace(",",".")); return s+(isNaN(n)?0:n); },0);
   return {rafts,units};
 }
 let open="";
@@ -697,7 +700,7 @@ function renderList(){
     const st=l.kontrol==="Uygun Değil"?["bad","Uygun değil"]:done?["done","Bitti"]:["ok","Uygun"];
     const d=document.createElement("div"); d.className="lr";
     const b=document.createElement("button"); b.type="button";
-    const used = !isStd(l.k) ? `${l.miktar||"–"} · sala bağlı değil` : l.k==="rubber" ? `${u.rafts.length} sal` : `${u.units} / ${l.miktar||"?"} · ${u.rafts.length} sal`;
+    const used = !isStd(l.k) ? `${l.miktar||"–"} · sala bağlı değil` : l.k==="rubber" ? `${String(u.units).replace(".",",")} / ${l.miktar||"?"} m · ${u.rafts.length} sal` : `${u.units} / ${l.miktar||"?"} · ${u.rafts.length} sal`;
     b.innerHTML=`<span class="m"></span><span class="l"></span><span class="meta t"></span><span class="meta g"></span><span class="meta s"></span>
       <span class="use"><span class="b"><i style="width:${pct}%"></i></span><span class="u"></span></span><span class="st ${st[0]}"></span>`;
     b.querySelector(".m").textContent=kName(l.k)||l.ad; b.querySelector(".l").textContent=l.lot; b.querySelector(".t").textContent=l.ted;

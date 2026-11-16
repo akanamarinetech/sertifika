@@ -668,6 +668,9 @@ function validate(r){
 
 // ---------- Excel ----------
 function xmlEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+const RUBBER_M={T6:27,T10:34.1,T15:47,T16:47,T20:56.5,T25:65,D15:57,D16:57,D20:62,D25:71.5};   // model başına kullanılan rubber kumaşı (metre, rulo eni 1 m)
+const rubberM=m=>RUBBER_M[String(m||"").toUpperCase().replace(/^ANA-/,"").trim()];
+const rubberTxt=m=>{ const v=rubberM(m); return v==null?"":String(v).replace(".",",")+" m"; };
 function setCell(xml,ref,val){
   if(val===undefined||val===null||val==="") return xml;
   const re=new RegExp(`<c r="${ref}"( s="\\d+")?( t="[a-zA-Z]+")?(?:/>|>[\\s\\S]*?</c>)`);
@@ -683,7 +686,7 @@ async function buildXlsx(r){
     const lr=lotRec(i.k,r["lot_"+i.k]);
     rows.push([i.tr,off?"-":c["q_"+i.k],r["lot_"+i.k]||"-",off?"-":c["e_"+i.k],off?"Pakette yok":(lr&&lr.ted)||(i.own?"Kendi üretim":"Tedarikçi")]); });
   SNS.filter(([k])=>c[k]).forEach(([k,t,h])=>rows.push([t,"1",c[k],h?(c[h]||""):"",h?"Tedarikçi":"Kendi üretim"]));
-  ITEMS.filter(i=>i.raw).forEach(i=>{ const lr=lotRec(i.k,r["lot_"+i.k]); rows.push([i.tr,"",r["lot_"+i.k],"",(lr&&lr.ted)||"Tedarikçi"]); });
+  ITEMS.filter(i=>i.raw).forEach(i=>{ const lr=lotRec(i.k,r["lot_"+i.k]); rows.push([i.tr,i.k==="rubber"?rubberTxt(c.model):"",r["lot_"+i.k],"",(lr&&lr.ted)||"Tedarikçi"]); });
   rows.slice(0,18).forEach((v,n)=>{ const R=10+n; ["A","D","E","G","H"].forEach((col,j)=>S[col+R]=v[j]); });
   Object.assign(S,{D30:p?p.kesim:"",D31:p?p.kaynak:"",D32:p?p.wp:"",D33:p?p.x:"",D34:p?p.tarih:"",D35:p?p.sonuc:"Test formu henüz yok",
     D38:`${r.serial} · ${c.mfg||""}`, D39:p?`${r.serial} · ${p.t.tarih||""}`:"Henüz yok",
