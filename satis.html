@@ -181,7 +181,7 @@ select{font-family:var(--sans)!important}
 .tbl .mono{font:600 13.5px var(--mono);color:var(--ink)}
 .tblwrap{overflow-x:auto}
 .chip{display:inline-block;font:600 11px var(--sans);padding:3px 8px;border-radius:6px;background:var(--auto-soft);color:var(--auto);white-space:nowrap}
-.chip.o{background:var(--accent-soft);color:var(--accent)} .chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.bad{background:var(--err-soft);color:var(--err)} .chip.warn{background:#FFF4CC;color:#8A5A00} .chip.g{background:var(--field);color:var(--muted)}
+.chip.o{background:var(--accent-soft);color:var(--accent)} .chip.d{background:#EDE7F6;color:#5B3FA0} .chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.bad{background:var(--err-soft);color:var(--err)} .chip.warn{background:#FFF4CC;color:#8A5A00} .chip.g{background:var(--field);color:var(--muted)}
 .lnk{border:0;background:none;color:var(--accent);font:600 13px var(--sans);cursor:pointer;padding:0;text-decoration:underline}
 .lnk.red{color:var(--err)}
 .addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
@@ -397,6 +397,23 @@ body.lgOpen{overflow:hidden}
     </div>
       <div class="tblwrap"><table class="tbl" id="malTbl"><thead><tr><th>Malzeme</th><th class="n">Adet</th><th>Lot No</th><th>SKT</th><th></th></tr></thead><tbody></tbody></table></div>
     </section>
+    <section class="card"><h2>4 · Dış Alım Ürün <small>dışarıdan alınıp satılan: hidrostatik kilit, pelikan kuşak, beşik, can yeleği…</small></h2><div class="body">
+      <div class="grid2">
+        <div class="f" id="fDu"><label for="dUrun">Ürün adı</label><input id="dUrun" list="dUrunList" autocomplete="off" placeholder="Yazın ya da listeden seçin"><datalist id="dUrunList"></datalist></div>
+        <div class="f"><label for="dMarka">Marka / Model <small style="font-weight:400;color:var(--muted)">isteğe bağlı</small></label><input id="dMarka" autocomplete="off"></div>
+      </div>
+      <div class="grid2">
+        <div class="f" id="fDa"><label for="dAdet">Adet / Miktar</label><div style="display:flex;gap:8px"><input id="dAdet" inputmode="decimal" style="flex:1"><select id="dBirim" style="width:auto"><option>Adet</option><option>Takım</option><option>Kutu</option><option>Metre</option><option>Kg</option><option>Litre</option></select></div></div>
+        <div class="f"><label for="dSeri">Seri / Lot No <small style="font-weight:400;color:var(--muted)">isteğe bağlı</small></label><input id="dSeri" autocapitalize="characters" autocomplete="off" placeholder="Birden fazlaysa virgülle"></div>
+      </div>
+      <div class="grid2">
+        <div class="f"><label for="dSkt">SKT <small style="font-weight:400;color:var(--muted)">isteğe bağlı</small></label><input id="dSkt" placeholder="AA/YYYY" inputmode="decimal"></div>
+        <div class="f"><label for="dNot">Not <small style="font-weight:400;color:var(--muted)">isteğe bağlı</small></label><input id="dNot" autocomplete="off"></div>
+      </div>
+      <button class="btn navy" type="button" id="btnDis">+ Satışa ekle</button>
+    </div>
+      <div class="tblwrap"><table class="tbl" id="disTbl"><thead><tr><th>Ürün</th><th class="n">Miktar</th><th>Seri / Lot</th><th>SKT</th><th></th></tr></thead><tbody></tbody></table></div>
+    </section>
   </div>
 
   <!-- ============ FİRMALAR ============ -->
@@ -428,6 +445,7 @@ body.lgOpen{overflow:hidden}
       </div>
       <div>
         <section class="card"><h2 id="mdTitle">Modele göre</h2><div class="tblwrap"><table class="tbl"><thead><tr><th>Model</th><th style="width:40%"></th><th class="n">Adet</th><th class="n">Pay</th></tr></thead><tbody id="mdRows"></tbody></table></div></section>
+        <section class="card"><h2 id="dzTitle">Dış alım ürünler</h2><div class="tblwrap"><table class="tbl"><thead><tr><th>Ürün</th><th class="n">Miktar</th><th class="n">Firma</th></tr></thead><tbody id="dzRows"></tbody></table></div></section>
         <section class="card"><h2 id="tfTitle">En çok alan firmalar</h2><div class="tblwrap"><table class="tbl"><thead><tr><th>Firma</th><th class="n">Can Salı</th><th class="n">Piroteknik</th></tr></thead><tbody id="tfRows"></tbody></table></div><div class="note">Firma bilgisi 2022’den itibaren vardır (2022–2026 Word bilgi formlarından).</div></section>
       </div>
     </div>
@@ -477,7 +495,7 @@ function conn(kind,text){ $("conn").className="conn "+kind; $("conn").lastChild.
 const API_OK=/^https:\/\/script\.google\.com\//.test(API_URL);
 let auth=store.get("cert_auth",null);
 let D={records:[],tests:[],izl:[],sks:[],lots:[],firms:[],sales:[],eski:[],gecmis:{},ilkSeri:""};
-let view="new", cart=[], mal=[], editSid="";
+let view="new", cart=[], mal=[], dis=[], editSid="";
 async function api(body){
   const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({...body,pin:auth&&auth.pin})});
   const j=await res.json();
@@ -675,20 +693,39 @@ function renderCart(){
     tr.innerHTML=`<td></td><td class="n mono"></td><td class="mono"></td><td class="mono"></td><td><button class="lnk red" type="button">Çıkar</button></td>`;
     tr.children[0].textContent=m.ad; tr.children[1].textContent=m.adet; tr.children[2].textContent=m.lot||"–"; tr.children[3].textContent=m.skt||"–";
     tr.querySelector("button").onclick=()=>{ mal.splice(i,1); renderCart(); }; tm.appendChild(tr); });
+  const td=$("disTbl").tBodies[0]; td.innerHTML="";
+  if(!dis.length) td.innerHTML=`<tr><td colspan="5" class="note">Dış alım ürün eklenmedi.</td></tr>`;
+  dis.forEach((d,i)=>{ const tr=document.createElement("tr");
+    tr.innerHTML=`<td></td><td class="n mono"></td><td class="mono"></td><td class="mono"></td><td><button class="lnk red" type="button">Çıkar</button></td>`;
+    tr.children[0].textContent=d.ad+(d.marka?` · ${d.marka}`:"")+(d.not?` (${d.not})`:""); tr.children[1].textContent=disMiktar(d); tr.children[2].textContent=d.seri||"–"; tr.children[3].textContent=d.skt||"–";
+    tr.querySelector("button").onclick=()=>{ dis.splice(i,1); renderCart(); }; td.appendChild(tr); });
   const pyro=cart.reduce((s,r)=>{ const p=pyroOfRaft(r.serial,r.model,r.pack); return s+p.rocket+p.smoke+p.flare; },0)+mal.filter(m=>["rocket","smoke","flare"].includes(m.k)).reduce((s,m)=>s+num(m.adet),0);
   const kw=editSid?"Değişiklikleri kaydet":"Kaydet";
-  $("btnSave").textContent= cart.length||mal.length ? `${kw} · ${cart.length} can salı${mal.length?` + ${mal.length} malzeme`:""} · ${pyro} piroteknik` : kw;
+  $("btnSave").textContent= cart.length||mal.length||dis.length ? `${kw} · ${cart.length} can salı${mal.length?` + ${mal.length} malzeme`:""}${dis.length?` + ${dis.length} dış alım`:""} · ${pyro} piroteknik` : kw;
 }
 $("mK").onchange=()=>{ const k=$("mK").value;
   const lots=D.lots.filter(l=>l.k===k&&l.kontrol!=="Uygun Değil").sort((a,b)=>dk(b.gelis).localeCompare(dk(a.gelis)));
   $("mLotList").innerHTML=lots.map(l=>`<option value="${esc(l.lot)}">`).join(""); if(lots[0]){ $("mLot").value=lots[0].lot; $("mSkt").value=lots[0].skt||""; } else { $("mLot").value=""; $("mSkt").value=""; } };
 $("mLot").addEventListener("change",()=>{ const l=D.lots.find(x=>x.k===$("mK").value&&norm(x.lot)===norm($("mLot").value)); if(l) $("mSkt").value=l.skt||""; });
+// ---- Dış alım ürün ----
+const DIS_ONERI=["Can salı hidrostatik kilit (HRU)","Pelikan kuşak","Can salı beşiği (cradle)"];
+const disTur=s=>s.tur==="Dış alım";
+function disOneri(){ const ad=[...new Set(DIS_ONERI.concat((D.sales||[]).filter(disTur).map(s=>s.ad)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"tr"));
+  $("dUrunList").innerHTML=ad.map(a=>`<option value="${esc(a)}">`).join(""); }
+function disMiktar(d){ return `${d.adet} ${(d.birim||"Adet").toLocaleLowerCase("tr-TR")}`; }
+$("dUrun").addEventListener("focus",disOneri);
+$("btnDis").onclick=()=>{ const ad=$("dUrun").value.replace(/\s+/g," ").trim(), adet=$("dAdet").value.trim().replace(",",".");
+  document.querySelectorAll(".miss").forEach(x=>x.classList.remove("miss"));
+  if(!ad){ $("fDu").classList.add("miss"); return; } if(!(num(adet)>0)){ $("fDa").classList.add("miss"); return; }
+  const benzer=[...new Set(DIS_ONERI.concat((D.sales||[]).filter(disTur).map(s=>s.ad)))].find(x=>norm(x)===norm(ad));   // aynı ürün farklı yazılmasın
+  dis.push({ad:benzer||ad, marka:$("dMarka").value.trim(), adet, birim:$("dBirim").value, seri:$("dSeri").value.trim().toLocaleUpperCase("tr-TR"), skt:$("dSkt").value.trim(), not:$("dNot").value.trim()});
+  ["dUrun","dMarka","dAdet","dSeri","dSkt","dNot"].forEach(id=>$(id).value=""); $("dBirim").value="Adet"; renderCart(); };
 $("btnMal").onclick=()=>{ const k=$("mK").value, adet=$("mAdet").value.trim();
   document.querySelectorAll(".miss").forEach(x=>x.classList.remove("miss"));
   if(!k){ $("fMk").classList.add("miss"); return; } if(!(num(adet)>0)){ $("fMad").classList.add("miss"); return; }
   mal.push({k,ad:(KALEM.find(x=>x[0]===k)||[])[1],adet,lot:$("mLot").value.trim().toLocaleUpperCase("tr-TR"),skt:$("mSkt").value.trim()});
   $("mK").value=""; $("mAdet").value=""; $("mLot").value=""; $("mSkt").value=""; renderCart(); };
-function resetNew(){ editSid=""; $("editBar").hidden=true; cart=[]; mal=[]; $("firma").value=""; $("irs").value=""; $("siparis").value=""; $("tarih").value=todayISO(); $("firmaNew").hidden=true; $("salQ").value=""; renderPick(); renderCart(); }
+function resetNew(){ editSid=""; $("editBar").hidden=true; cart=[]; mal=[]; dis=[]; ["dUrun","dMarka","dAdet","dSeri","dSkt","dNot"].forEach(id=>$(id).value=""); $("dBirim").value="Adet"; $("firma").value=""; $("irs").value=""; $("siparis").value=""; $("tarih").value=todayISO(); $("firmaNew").hidden=true; $("salQ").value=""; renderPick(); renderCart(); }
 $("btnClear").onclick=()=>{ msg("topMsg"); resetNew(); };
 $("btnEditCancel").onclick=()=>{ msg("topMsg"); resetNew(); };
 
@@ -704,6 +741,7 @@ async function teslimXlsx(h,lines){
   x=setCell(x,"H2",h.tarih); x=setCell(x,"C5",h.firma); x=setCell(x,"C6",h.tarih); x=setCell(x,"G6",h.irs||""); x=setCell(x,"C7",h.siparis||"–"); x=setCell(x,"G7",teslimSure(h.siparis,h.tarih));
   lines.slice(0,20).forEach((l,i)=>{ const r=9+i; x=setCell(x,"A"+r,String(i+1));
     if(l.tur==="Can salı"){ x=setCell(x,"B"+r,"Can salı / Liferaft"); x=setCell(x,"D"+r,l.serial); x=setCell(x,"F"+r,`ANA-${l.model} · ${l.pack}`); x=setCell(x,"G"+r,"1"); }
+    else if(l.tur==="Dış alım"){ x=setCell(x,"B"+r,l.ad+(l.marka?" · "+l.marka:"")); x=setCell(x,"D"+r,l.lot||""); x=setCell(x,"F"+r,l.not||""); x=setCell(x,"G"+r,String(l.adet)+((l.birim||"Adet")!=="Adet"?" "+l.birim.toLocaleLowerCase("tr-TR"):"")); x=setCell(x,"H"+r,l.skt||""); }
     else { x=setCell(x,"B"+r,l.ad); x=setCell(x,"D"+r,l.lot||""); x=setCell(x,"G"+r,String(l.adet)); x=setCell(x,"H"+r,l.skt||""); } });
   zip.file(p,x); const blob=await zip.generateAsync({type:"blob",compression:"DEFLATE",mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`TESLIM_${h.firma.replace(/[^A-Za-z0-9ĞÜŞİÖÇğüşıöç]+/g,"_")}_${h.tarih.replace(/\./g,"-")}.xlsx`;
@@ -712,14 +750,16 @@ async function teslimXlsx(h,lines){
 $("btnSave").onclick=async()=>{
   // kutularda doldurulmuş ama "+ Malzemeyi ekle"ye basılmamış malzeme varsa kendiliğinden eklenir
   if($("mK").value && num($("mAdet").value)>0) $("btnMal").onclick();
+  if($("dUrun").value.trim() && num($("dAdet").value.replace(",","."))>0) $("btnDis").onclick();
   document.querySelectorAll(".miss").forEach(x=>x.classList.remove("miss"));
   const h={firma:$("firma").value.replace(/\s+/g," ").trim(), tarih:isoToTR($("tarih").value), irs:$("irs").value.trim().toLocaleUpperCase("tr-TR"), siparis:$("siparis").value?isoToTR($("siparis").value):""};
   const ex=D.firms.find(f=>norm(f.ad)===norm(h.firma)); if(ex) h.firma=ex.ad;
   const e=[]; if(!h.firma){ e.push("Firma"); $("fFirma").classList.add("miss"); } if(!h.tarih){ e.push("Teslim tarihi"); $("fTarih").classList.add("miss"); }
   if(h.siparis&&$("tarih").value&&$("siparis").value>$("tarih").value){ e.push("Sipariş tarihi teslim tarihinden sonra olamaz"); $("fSip").classList.add("miss"); }
-  if(!cart.length&&!mal.length) e.push("En az bir can salı ya da malzeme");
+  if(!cart.length&&!mal.length&&!dis.length) e.push("En az bir can salı, malzeme ya da dış alım ürün");
   if(e.length){ msg("topMsg","err","Eksik: "+e.join(", ")); window.scrollTo({top:0,behavior:"smooth"}); return; }
-  const lines=cart.map(r=>({tur:"Can salı",serial:r.serial,model:r.model,pack:r.pack,zorla:r.zorla?1:0})).concat(mal.map(m=>({tur:"Malzeme",k:m.k,ad:m.ad,adet:m.adet,lot:m.lot,skt:m.skt})));
+  const lines=cart.map(r=>({tur:"Can salı",serial:r.serial,model:r.model,pack:r.pack,zorla:r.zorla?1:0})).concat(mal.map(m=>({tur:"Malzeme",k:m.k,ad:m.ad,adet:m.adet,lot:m.lot,skt:m.skt})))
+    .concat(dis.map(d=>({tur:"Dış alım",ad:d.ad,marka:d.marka,adet:d.adet,birim:d.birim,lot:d.seri,skt:d.skt,not:d.not})));
   const b=$("btnSave"); b.disabled=true; const lbl=b.textContent; b.textContent="Kaydediliyor…";
   try{
     const wasEdit=!!editSid;
@@ -728,7 +768,7 @@ $("btnSave").onclick=async()=>{
       const hh={...h}, ll=lines.slice(); resetNew();
       const box=$("topMsg"); box.innerHTML=""; const d=document.createElement("div"); d.className="msg ok savedbox";
       const p=document.createElement("div"); const nR=ll.filter(l=>l.tur==="Can salı").length, mL=ll.filter(l=>l.tur!=="Can salı");
-      p.textContent=`✓ Satış ${wasEdit?"güncellendi":"kaydedildi"}: ${hh.firma} · ${[nR?nR+" can salı":"", ...mL.map(m=>m.adet+" "+m.ad)].filter(Boolean).join(" + ")}. Yeni satış için form hazır.`; d.appendChild(p);
+      p.textContent=`✓ Satış ${wasEdit?"güncellendi":"kaydedildi"}: ${hh.firma} · ${[nR?nR+" can salı":"", ...mL.map(m=>m.tur==="Dış alım"?disMiktar(m)+" "+m.ad:m.adet+" "+m.ad)].filter(Boolean).join(" + ")}. Yeni satış için form hazır.`; d.appendChild(p);
       const a=document.createElement("div"); a.className="acts"; const t=document.createElement("button"); t.type="button"; t.textContent="Teslim Tutanağı İndir";
       t.onclick=()=>teslimXlsx(hh,ll).catch(err=>msg("topMsg","err","Teslim tutanağı oluşturulamadı: "+(err.message||err)));
       const f=document.createElement("button"); f.type="button"; f.textContent="Firma kartını aç"; f.onclick=()=>{ go("firms"); openFirm(hh.firma); };
@@ -778,10 +818,12 @@ function openFirm(ad){
   top.querySelector("b").textContent=ad; top.querySelector("button").onclick=()=>{ openDet=""; renderFirms(); }; box.appendChild(top);
   const k=document.createElement("div"); k.className="kpis";
   const kpi=(t,v,s)=>`<div class="kpi"><span>${t}</span><b>${fmtN(v)}</b><small>${s}</small></div>`;
-  const other=st.items.filter(i=>!["rocket","smoke","flare"].includes(i.k)).reduce((s,i)=>s+num(i.adet),0);
+  const other=st.items.filter(i=>!disTur(i)&&!["rocket","smoke","flare"].includes(i.k)).reduce((s,i)=>s+num(i.adet),0);
+  const disN=st.items.filter(disTur), disAd=[...new Set(disN.map(i=>i.ad))];
   k.innerHTML=kpi("Can salı",st.rafts.length,`son satış ${st.last||"–"}`)+kpi("Paraşüt roket",st.py.rocket,`sal içi ${st.pyIn.rocket} + ayrı ${st.py.rocket-st.pyIn.rocket}`)
     +kpi("Duman",st.py.smoke,`sal içi ${st.pyIn.smoke} + ayrı ${st.py.smoke-st.pyIn.smoke}`)+kpi("El maytabı",st.py.flare,`sal içi ${st.pyIn.flare} + ayrı ${st.py.flare-st.pyIn.flare}`)
-    +kpi("Diğer malzeme",other,"ayrı satılan");
+    +kpi("Diğer malzeme",other,"ayrı satılan")
+    +(disN.length?kpi("Dış alım ürün",disN.reduce((s,i)=>s+num(i.adet),0),disAd.length+" çeşit · "+disAd.slice(0,2).join(", ")+(disAd.length>2?"…":"")):"");
   box.appendChild(k);
   const sec=document.createElement("section"); sec.className="card";
   sec.innerHTML=`<h2>Satış geçmişi <small>en yeni üstte · can salında satıra tıklayınca içerik açılır · geçmiş kayıtlarda tarih üretim tarihidir</small></h2><div class="tblwrap"><table class="tbl"><thead><tr><th>Tarih</th><th>İrsaliye</th><th>Ürün</th><th>Detay</th><th></th></tr></thead><tbody></tbody></table></div>`;
@@ -791,9 +833,9 @@ function openFirm(ad){
   let lastSid="";
   rows.forEach(r=>{
     const tr=document.createElement("tr"); const raft=r.tur==="Can salı";
-    tr.innerHTML=`<td></td><td class="mono" style="font-size:12.5px"></td><td><span class="chip ${raft?"":"o"}"></span></td><td class="mono" style="font-size:12.5px"></td><td style="white-space:nowrap"></td>`;
+    tr.innerHTML=`<td></td><td class="mono" style="font-size:12.5px"></td><td><span class="chip ${raft?"":disTur(r)?"d":"o"}"></span></td><td class="mono" style="font-size:12.5px"></td><td style="white-space:nowrap"></td>`;
     tr.children[0].textContent=r.tarih; if(r.siparis){ const sm=document.createElement("small"); sm.style.cssText="display:block;color:var(--muted);font-size:11.5px"; sm.textContent="sipariş "+r.siparis; tr.children[0].appendChild(sm); } tr.children[1].textContent=r.gecmis?"Geçmiş kayıt":(r.irs||"–"); if(r.gecmis){ tr.children[1].style.color="var(--muted)"; tr.children[0].title="Üretim tarihi (Word bilgi formundan)"; } tr.querySelector(".chip").textContent=raft?"Can salı":r.ad;
-    tr.children[3].textContent= raft? `${r.serial} · ANA-${r.model} ${r.pack==="-"?"(paket yok)":(r.pack||"")}${r.not?" · "+r.not:""}${r.uyari?" · ⚠ "+r.uyari+(formTamam(r.serial)?" · ✓ formlar sonradan tamamlandı":""):""}` : `${r.adet} adet${r.lot?" · "+r.lot:""}`;
+    tr.children[3].textContent= raft? `${r.serial} · ANA-${r.model} ${r.pack==="-"?"(paket yok)":(r.pack||"")}${r.not?" · "+r.not:""}${r.uyari?" · ⚠ "+r.uyari+(formTamam(r.serial)?" · ✓ formlar sonradan tamamlandı":""):""}` : disTur(r) ? ["Dış alım",disMiktar(r),r.marka,r.lot?"seri/lot "+r.lot:"",r.skt?"SKT "+r.skt:"",r.not].filter(Boolean).join(" · ") : `${r.adet} adet${r.lot?" · "+r.lot:""}`;
     const act=tr.children[4];
     if(raft&&certOf(r.serial)){ const kl=document.createElement("a"); kl.className="lnk"; kl.textContent="Kart ↗"; kl.style.marginRight="10px"; kl.target="_blank"; kl.rel="noopener";
       kl.href="kart.html?s="+encodeURIComponent(r.serial); kl.onclick=e=>e.stopPropagation(); act.appendChild(kl); }
@@ -822,7 +864,8 @@ function editSale(sid){
   editSid=sid; const h=rows[0];
   cart=rows.filter(r=>r.tur==="Can salı").map(r=>{ const c=certOf(r.serial); const old=!c||(D.ilkSeri&&String(r.serial)<D.ilkSeri);
     const ek=/^Eksik formla satıldı \((.*)\)$/.exec(r.uyari||""); return {serial:String(r.serial),model:r.model,pack:r.pack||"A",old:!!old,nocert:!c,zorla:ek?1:0,eksik:ek?ek[1]:""}; });
-  mal=rows.filter(r=>r.tur!=="Can salı").map(r=>({k:r.k,ad:r.ad,adet:r.adet,lot:r.lot,skt:r.skt}));
+  mal=rows.filter(r=>r.tur!=="Can salı"&&!disTur(r)).map(r=>({k:r.k,ad:r.ad,adet:r.adet,lot:r.lot,skt:r.skt}));
+  dis=rows.filter(disTur).map(r=>({ad:r.ad,marka:r.marka||"",adet:r.adet,birim:r.birim||"Adet",seri:r.lot||"",skt:r.skt||"",not:r.not||""}));
   go("new");
   $("firma").value=h.firma; $("irs").value=h.irs||""; const m=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec(h.tarih||""); $("tarih").value=m?`${m[3]}-${m[2]}-${m[1]}`:todayISO();
   const ms=/^(\d{2})\.(\d{2})\.(\d{4})$/.exec(h.siparis||""); $("siparis").value=ms?`${ms[3]}-${ms[2]}-${ms[1]}`:"";
@@ -896,6 +939,11 @@ function renderAn(){
   const tf=Object.entries(fm).sort((a,b)=>b[1].n-a[1].n||b[1].p-a[1].p).slice(0,10);
   $("tfTitle").innerHTML=`En çok alan firmalar · ${Y}`;
   $("tfRows").innerHTML=tf.map(([f,v])=>`<tr><td><b style="color:var(--ink)">${esc(f)}</b></td><td class="n mono">${v.n}</td><td class="n mono">${v.p}</td></tr>`).join("")||`<tr><td colspan="3" class="note">Bu yıl için firma bazında kayıt yok (2022 öncesi firma bilgisi yok).</td></tr>`;
+  // dış alım ürünler
+  const dz={}; sysI.filter(i=>disTur(i)&&dk(i.tarih).slice(0,4)===String(Y)).forEach(i=>{ const k=i.ad+"|"+(i.birim||"Adet"); dz[k]=dz[k]||{ad:i.ad,b:i.birim||"Adet",n:0,f:new Set()}; dz[k].n+=num(i.adet); dz[k].f.add(i.firma); });
+  const dzl=Object.values(dz).sort((a,b)=>b.n-a.n);
+  $("dzTitle").innerHTML=`Dış alım ürünler · ${Y}`;
+  $("dzRows").innerHTML=dzl.map(d=>`<tr><td><b style="color:var(--ink)">${esc(d.ad)}</b></td><td class="n mono">${fmtN(d.n)} ${esc(d.b.toLocaleLowerCase("tr-TR"))}</td><td class="n mono">${d.f.size}</td></tr>`).join("")||`<tr><td colspan="3" class="note">Bu yıl dış alım ürün satışı yok.</td></tr>`;
   anData={Y,byM,py,tf,labels,vals};
 }
 $("btnCsv").onclick=()=>{ if(!anData) return; const {Y,byM,py,tf,labels,vals}=anData;

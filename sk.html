@@ -280,6 +280,10 @@ body.lgOpen{overflow:hidden}
   .lg-form h1{font-size:28px}.lg-form .lg-sub{margin-bottom:22px}
 }
 @media (prefers-reduced-motion:reduce){.lg-hero img,.lg-flow span{animation:none;opacity:1}}
+
+/* onaylı / inceleme modunda form değiştirilemez */
+body.skro #viewForm .it, body.skro #konSeg{pointer-events:none}
+body.skro #viewForm .it{opacity:.92}
 </style>
 </head>
 <body>
@@ -360,11 +364,12 @@ body.lgOpen{overflow:hidden}
   </div>
 </div>
 
-<div class="bar" id="bar" hidden><div class="in" style="display:grid;grid-template-columns:auto 1fr auto auto;gap:8px">
+<div class="bar" id="bar" hidden><div class="in" style="display:flex;flex-wrap:wrap;gap:8px">
   <button class="btn ghost" id="btnCancel">Kapat</button>
-  <button class="btn primary" id="btnSave">Kaydet</button>
+  <button class="btn primary" id="btnSave" style="flex:1">Kaydet</button>
   <button class="btn navy" id="btnXlsx">Excel İndir</button>
   <button class="btn primary" id="btnOnay" hidden style="background:var(--ok)">✓ Onayla</button>
+  <button class="btn ghost" id="btnDuzelt" hidden>Düzeltmeye aç</button>
 </div></div>
 
 <script>
@@ -449,7 +454,7 @@ function renderNav(){ const sc=store.get("cert_sayac",{}); try{ const n=waitingC
 $("sLogo").src=$("logo").src; $("sLogout").onclick=()=>logout("");
 
 // ---------- views ----------
-function showView(v){
+function showView(v){ if(v!=="form"){ document.body.classList.remove("skro"); roMode=false; }
   document.body.classList.toggle("authed",v!=="login");
   $("viewLogin").hidden=v!=="login"; $("tabsBox").hidden=!(v==="wait"||v==="done");
   $("viewList").hidden=!(v==="wait"||v==="done"); $("viewForm").hidden=v!=="form"; $("bar").hidden=v!=="form";
@@ -514,7 +519,7 @@ function renderList(){
     rows=[...sks].filter(s=>!q||norm(s.serial+" "+s.model+" "+s.by).includes(q)).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))).map(s=>{
       const p = s.sonuc==="Uygun Değil" ? `<span class="pill bad">Uygun değil</span>` : s.onayBy ? `<span class="pill ok">Onaylandı · ${esc(s.onayBy)}</span>` : `<span class="pill wait">Onay bekliyor</span>`;
       return `<div class="item"><div><b>${esc(s.serial)}</b><div class="meta">${p}ANA-${esc(s.model)} · ${esc(s.tarih)} · ${esc(s.by)}</div></div>
-        <button data-s="${esc(s.serial)}">${isAdmin()&&!s.onayBy&&s.sonuc!=="Uygun Değil"?"Aç / Onayla":"Aç"}</button></div>`; });
+        <button data-s="${esc(s.serial)}">${s.onayBy?"Görüntüle":isAdmin()&&s.sonuc!=="Uygun Değil"&&s.by!==auth.name?"İncele / Onayla":"Aç"}</button></div>`; });
     $("list").innerHTML=rows.join("")||`<div class="empty">Henüz son kontrol formu yok.</div>`;
   }
   $("list").querySelectorAll("button[data-s]").forEach(b=>b.onclick=()=>openForm(b.dataset.s));
@@ -553,7 +558,13 @@ function openForm(serial){
   $("iSerial").textContent=cur.serial; $("iTip").textContent=`${cur.model||"?"} · ${cert.pack||"A"}`;
   $("iCap").textContent=parseInt(String(cur.model).replace(/\D/g,""))||"–"; $("iMfg").textContent=cert.mfg||"–"; $("iTarih").textContent=cur.tarih;
   [...$("konSeg").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===cur.konteyner));
-  msg("topMsg"); if(saved) msg("topMsg","info", saved.onayBy? `Bu form ${saved.onayBy} tarafından onaylandı. Değiştirip kaydederseniz onay düşer, yeniden onay gerekir.` : `Kayıtlı form (${saved.by}). Değiştirip tekrar kaydedebilirsiniz.`);
+  // kilit: onaylanmış form hiç değiştirilemez; yönetici başkasının bekleyen formunu sadece inceleyip onaylar
+  roMode = !!(saved && (saved.onayBy || (isAdmin() && saved.by!==auth.name && saved.sonuc!=="Uygun Değil")));
+  document.body.classList.toggle("skro", roMode);
+  msg("topMsg");
+  if(saved&&saved.onayBy) msg("topMsg","info", `🔒 Bu form ${saved.onayBy} tarafından onaylandı (${new Date(saved.onayAt).toLocaleDateString("tr-TR")}) ve kilitli.`+(isAdmin()?` Düzeltme gerekiyorsa alttaki "Düzeltmeye aç" düğmesini kullanın.`:` Düzeltme gerekiyorsa yetkiliye haber verin.`));
+  else if(saved&&roMode) msg("topMsg","info", `${saved.by} doldurdu, onayınızı bekliyor. Bir hata varsa onaylamayın, ${saved.by} düzeltip yeniden kaydetsin.`);
+  else if(saved) msg("topMsg","info", `Kayıtlı form (${saved.by}), henüz onaylanmadı. Değiştirip tekrar kaydedebilirsiniz.`);
   renderForm(); updBar(); showView("form");
 }
 [...$("konSeg").children].forEach(b=>b.onclick=()=>{ cur.konteyner=b.dataset.v; [...$("konSeg").children].forEach(x=>x.setAttribute("aria-pressed",x===b)); });
@@ -611,8 +622,23 @@ function validate(){
 function uygunsuzluk(){ return ALL.filter(it=>ans[it.c]&&ans[it.c].v==="UD").map(it=>`${it.c}: ${ans[it.c].n} → ${ans[it.c].d==="E"?"düzeltildi":"düzeltilmedi"}`).join(" · "); }
 function collect(){ return {serial:cur.serial, model:cur.model, tarih:cur.tarih, konteyner:cur.konteyner, sonuc:result(), uygunsuzluk:uygunsuzluk(),
   cevaplar:JSON.stringify(Object.fromEntries(ALL.map(it=>[it.c,ans[it.c]]).filter(x=>x[1])))}; }
+var roMode=false;
 function updBar(){ const s=skOf(cur.serial);
-  $("btnOnay").hidden=!(isAdmin()&&s&&!s.onayBy&&s.sonuc!=="Uygun Değil"&&s.by!==auth.name); }
+  $("btnOnay").hidden=!(isAdmin()&&s&&!s.onayBy&&s.sonuc!=="Uygun Değil"&&s.by!==auth.name);
+  $("btnSave").hidden=roMode;
+  $("btnDuzelt").hidden=!(isAdmin()&&s&&s.onayBy); }
+$("btnDuzelt").onclick=async()=>{
+  const s=skOf(cur.serial); if(!s) return;
+  const sebep=prompt(s.serial+" son kontrol formunun onayı kaldırılacak ve düzeltmeye açılacak.\nDüzeltme sebebi:");
+  if(sebep===null) return; if(!sebep.trim()){ msg("topMsg","err","Düzeltme sebebini yazmanız gerekiyor."); return; }
+  busy(true);
+  try{ const j=await api({action:"skAc",serial:s.serial,sebep:sebep.trim()});
+    if(j.ok){ sks=j.sks||sks; store.set("sk_cache",{certs,tests,sks,ilkSeri}); busy(false); openForm(s.serial);
+      msg("topMsg","ok",`✓ ${s.serial} düzeltmeye açıldı. Formu dolduran kişi düzeltip yeniden kaydedince tekrar onayınıza gelecek.`); return; }
+    msg("topMsg","err",j.error==="Bilinmeyen işlem"?"E-Tablo kodu güncel değil. Apps Script'te yeni sürümü dağıtın.":(j.error||"Yapılamadı"));
+  }catch(err){ if(err.message!=="auth") msg("topMsg","err","Sunucuya ulaşılamadı."); }
+  busy(false);
+};
 
 // ---------- Excel (PR.09-FR.12 şablonu) ----------
 const xesc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -651,7 +677,7 @@ function savedBox(text,kind,dl){
   const a=document.createElement("div"); a.className="acts"; const b=document.createElement("button"); b.type="button"; b.textContent="Excel İndir";
   b.onclick=()=>dl().catch(e=>msg("listMsg","err","Excel oluşturulamadı: "+(e.message||e))); a.appendChild(b); d.appendChild(a); box.appendChild(d);
 }
-function busy(on){ ["btnSave","btnXlsx","btnCancel","btnOnay"].forEach(id=>$(id).disabled=on); }
+function busy(on){ ["btnSave","btnXlsx","btnCancel","btnOnay","btnDuzelt"].forEach(id=>$(id).disabled=on); }
 $("btnBack").onclick=$("btnCancel").onclick=()=>{ cur=null; showView(listMode); };
 $("btnSave").onclick=async()=>{
   const e=validate();
@@ -665,6 +691,7 @@ $("btnSave").onclick=async()=>{
       savedBox(`✓ ${r.serial} son kontrol formu kaydedildi: ${r.sonuc==="Uygun"?"UYGUN, yönetici onayı bekliyor":"UYGUN DEĞİL"}.${ok?" Excel Drive'a gönderildi.":" Excel Drive'a gönderilemedi: "+(j.excel||"")}`, r.sonuc==="Uygun"&&ok?"ok":"info",
         ()=>{ cert=cs; return downloadXlsx(r,null); });
       window.scrollTo({top:0,behavior:"smooth"}); return; }
+    if(j.code==="locked"&&j.sks){ sks=j.sks; store.set("sk_cache",{certs,tests,sks,ilkSeri}); }
     msg("topMsg","err","Kaydedilemedi: "+j.error);
   }catch(err){ if(err.message!=="auth") msg("topMsg","err","Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin."); }
   busy(false); $("btnSave").textContent="Kaydet"; window.scrollTo({top:0,behavior:"smooth"});
